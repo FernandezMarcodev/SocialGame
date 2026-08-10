@@ -22,4 +22,6 @@ class ConsoleEmailProvider:
 
     def send(self, to_email: str, subject: str, body: str) -> None:
         self._outbox.append((to_email, subject, body))
-        print(f"[email] para={to_email} asunto={subject}")
+        print(f"[email] para={to_email}")
+        print(f"  asunto: {subject}")
+        print(body)
