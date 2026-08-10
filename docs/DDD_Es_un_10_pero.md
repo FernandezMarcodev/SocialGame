@@ -583,8 +583,8 @@ Contratos formales entre el cliente y el sistema, y entre módulos internos. El 
 
 | Interfaz | Descripción | Detalle |
 | --- | --- | --- |
-| REST /api/v1/* | Operaciones CRUD y de dominio por HTTP/JSON | Apéndice B.1 — tabla de endpoints |
-| WebSocket /api/v1/ws | Eventos de tiempo real push al cliente | Apéndice B.2 — catálogo de eventos |
+| REST /api/v1/* | Operaciones CRUD y de dominio por HTTP/JSON | Apéndice B.3 — catálogo de endpoints |
+| WebSocket /api/v1/ws | Eventos de tiempo real push al cliente | Apéndice B.4 — catálogo de eventos |
 | Interfaz interna de servicios | Llamadas entre servicios de aplicación | Sección 4.2.2 (dependencias) |
 | Interfaz de repositorios | Acceso a datos (SQLAlchemy) | Sección 4.3 |
 | Interfaz de email | Proveedor intercambiable (fake/smtp/resend) | Sección 5.5 |
@@ -800,11 +800,211 @@ Contexto: RN-008 (mínimo 2 jugadores) y RF-SAL-008 (límite máximo). Decisión
 
 Contexto: RNF-SEG-001 sin política explícita. Decisión: mínimo 8 caracteres y al menos una mayúscula, minúscula, dígito y símbolo. Consecuencias: criterios verificables en registro y cambio de contraseña. Estado: Aceptada.
 
-# Apéndice B — Contratos de interfaz
+# Apéndice B — Contratos de interfaz front-back
 
-Se definen los contratos que los clientes consumen. Todos los intercambios usan JSON (RNF-INT-001).
+Este apéndice define, por módulo, los contratos que los clientes (frontend web, apps móviles y de escritorio) consumen del backend. Todo intercambio usa JSON (RNF-INT-001); salvo el canal WebSocket de la sección B.2.7, cada operación de dominio se expone como endpoint REST y el feedback en tiempo real se entrega mediante eventos push.
 
-## B.1 Endpoints REST
+## B.1 Convenciones generales
+
+- **Base URL**: `/api/v1`. HTTPS en producción.
+- **Representación**: `application/json; charset=utf-8`.
+- **Autenticación REST**: cabecera `Authorization: Bearer <access_token>`.
+- **Autenticación WebSocket**: `wss://host/api/v1/ws?token=<access_token>` (RF-COM-001).
+- **Identificadores**:
+  - `id` / `player_id` / `user_id`: `usr-` + 10 hex (ej. `usr-3f2a91c4d8`).
+  - `room_code`: 6 caracteres `[0-9A-Z]`, sin dígitos/de letras ambiguos (ej. `AB12CD`).
+  - `match_id`: `m-` + 10 hex (ej. `m-8b1e42f9c7`).
+  - `turn_id`: `t-` + 10 hex (ej. `t-57a30c9d11`).
+- **Instantes de tiempo**: epoch en milisegundos (ms, UTC).
+- **Estados (máquinas de 4.4)** — valores de máquina (inglés) y su equivalente en el DDD:
+
+  | Entidad | Valores | Correspondencia DDD |
+  | --- | --- | --- |
+  | `room.state` | `available` · `in_match` · `cancelled` · `deleted` | DISPONIBLE · EN JUEGO · CANCELADA · ELIMINADA |
+  | `match.state` | `created` · `initialized` · `in_progress` · `finished` | CREADA · INICIALIZADA · EN CURSO · FINALIZADA |
+  | `turn.state` | `active` · `voting` · `finished` · `discarded` | ACTIVO · EN VOTACIÓN · FINALIZADO · DESCARTADO |
+
+- **Envoltura de eventos WS** (B.2.7): `{ "type": <string>, "timestamp": <ms>, "data": <objeto> }`.
+- **Errores**: formato unificado B.5; códigos específicos por módulo en cada sección.
+
+**Objetos reutilizados**
+
+`User`:
+```json
+{
+  "id": "usr-3f2a91c4d8",
+  "username": "ken2000",
+  "email": "ken2000@example.com",
+  "verified": true,
+  "profile_image_url": "/avatars/k.svg",
+  "created_at": 1760000000000
+}
+```
+
+`Modality`:
+```json
+{ "id": 1, "name": "Es un 10 pero...", "template": "Es un 10 pero ..." }
+```
+
+`Player`:
+```json
+{ "id": "usr-3f2a91c4d8", "username": "ken2000", "joined_at": 1760000000001 }
+```
+
+## B.2 Contratos por módulo
+
+### B.2.1 Módulo de autenticación (RF-AUT-001 a 009)
+
+| Método | Ruta | Auth | Request | Response 2xx | Errores específicos |
+| --- | --- | --- | --- | --- | --- |
+| POST | `/api/v1/auth/register` | No | `{username, email, password}` | `201` → `User` (sin sesión) | `USERNAME_TAKEN` · `EMAIL_TAKEN` · `VALIDATION_ERROR` |
+| POST | `/api/v1/auth/verify-email` | No | `{token}` | `200` → `{}` | `TOKEN_INVALID` · `TOKEN_EXPIRED` · `ALREADY_VERIFIED` |
+| POST | `/api/v1/auth/resend-verification` | No | `{email}` | `200` → `{}` | `ALREADY_VERIFIED` · `EMAIL_SEND_FAILED` |
+| POST | `/api/v1/auth/login` | No | `{identifier, password}` | `200` → `{access_token, token_type: "bearer", expires_at, user}` | `INVALID_CREDENTIALS` · `ACCOUNT_BLOCKED` · `EMAIL_NOT_VERIFIED` |
+| POST | `/api/v1/auth/logout` | Sí | `—` | `204` | `TOKEN_INVALID` |
+| POST | `/api/v1/auth/change-password` | Sí | `{current_password, new_password}` | `200` → `{}` | `INVALID_CREDENTIALS` · `PASSWORD_POLICY` |
+| POST | `/api/v1/auth/forgot-password` | No | `{email}` | `200` → `{}` | `PASSWORD_POLICY` (respuesta genérica, RF-AUT-008) |
+| POST | `/api/v1/auth/reset-password` | No | `{token, new_password}` | `200` → `{}` | `TOKEN_INVALID` · `TOKEN_EXPIRED` · `PASSWORD_POLICY` |
+
+Reglas de negocio no negociables:
+- `username`: 3–20 caracteres, único insensible a mayúsculas (RN-001). `email`: único, normalizado (RN-002).
+- `password`: mínimo 8 caracteres con mayúscula, minúscula, dígito y símbolo (AD-008).
+- La cuenta debe estar verificada (`verified=true`) antes del primer `login` (RF-AUT-001). Un cambio de email en `PATCH /users/me` revierte `verified=false`.
+- Tras 5 intentos fallidos consecutivos la cuenta se bloquea temporalmente (RF-AUT-005): `ACCOUNT_BLOCKED` con `details.retry_after`.
+- El `access_token` es opaco, con hash almacenado en `SessionStore` y TTL (AD-002); `logout` o expiración lo invalidan.
+- Eventos WS: ninguno.
+
+### B.2.2 Módulo de usuarios (RF-USR-001 a 007)
+
+| Método | Ruta | Auth | Request | Response 2xx | Errores específicos |
+| --- | --- | --- | --- | --- | --- |
+| GET | `/api/v1/users/me` | Sí | `—` | `200` → `User` | `TOKEN_INVALID` |
+| PATCH | `/api/v1/users/me` | Sí | `{username?, email?}` (opcionales) | `200` → `User` | `USERNAME_TAKEN` · `EMAIL_TAKEN` · `VALIDATION_ERROR` |
+| GET | `/api/v1/modalities` | Sí | `—` | `200` → `{items: [Modality], total}` | `—` |
+
+- `profile_image_url` es generada por el servidor a partir de la inicial del username (RF-USR-005); no acepta subida de imagen (RN-005).
+- La lista de modalidades es el catálogo precargado de plantillas de frase (AD-007); es la única fuente de `modality_id` para crear salas.
+
+### B.2.3 Módulo de salas (RF-SAL-001 a 008)
+
+| Método | Ruta | Auth | Request | Response 2xx | Errores específicos |
+| --- | --- | --- | --- | --- | --- |
+| POST | `/api/v1/rooms` | Sí | `{modality_id}` | `201` → `Room` | `MODALITY_NOT_FOUND` · `PLAYER_ALREADY_IN_SESSION` |
+| GET | `/api/v1/rooms/{code}` | Sí | `—` | `200` → `Room` | `ROOM_NOT_FOUND` |
+| POST | `/api/v1/rooms/{code}/join` | Sí | `—` | `200` → `Room` | `ROOM_NOT_FOUND` · `ROOM_FULL` · `ROOM_NOT_AVAILABLE` · `PLAYER_ALREADY_IN_SESSION` |
+| POST | `/api/v1/rooms/{code}/leave` | Sí | `—` | `200` → `Room` | `ROOM_NOT_FOUND` · `NOT_IN_ROOM` |
+| POST | `/api/v1/rooms/{code}/start` | Sí | `—` | `200` → `{match_id}` | `NOT_CREATOR` · `MIN_PLAYERS_NOT_REACHED` · `ROOM_NOT_AVAILABLE` |
+| DELETE | `/api/v1/rooms/{code}` | Sí | `—` | `204` | `NOT_CREATOR` · `ROOM_IN_MATCH` |
+
+`Room`:
+```json
+{
+  "code": "AB12CD",
+  "state": "available",
+  "creator_id": "usr-3f2a91c4d8",
+  "modality": {"id": 1, "name": "Es un 10 pero...", "template": "Es un 10 pero ..."},
+  "players": [{"id": "usr-3f2a91c4d8", "username": "ken2000", "joined_at": 1760000000001}],
+  "min_players": 2,
+  "max_players": 6,
+  "created_at": 1760000000000
+}
+```
+
+- Condiciones de ingreso (RF-SAL-008, RN-006 a 009): la sala es privada, se localiza solo por `code`; sólo admite usuarios que no estén en otra sala y mientras `state=available` y haya cupo.
+- Transiciones (4.4.1): `available` → `in_match` al iniciar (deja de admitir jugadores, RN-009); `available` → `cancelled` por `DELETE` del creador; cualquier estado → `deleted` al finalizar la partida (RN-024).
+- Eventos WS: `room.updated` (RF-COM-004) · `room.cancelled` (RF-SAL-006).
+
+### B.2.4 Módulo de partidas (RF-PAR-001 a 007)
+
+| Método | Ruta | Auth | Request | Response 2xx | Errores específicos |
+| --- | --- | --- | --- | --- | --- |
+| GET | `/api/v1/matches/{match_id}` | Sí | `—` | `200` → `Match` | `MATCH_NOT_FOUND` |
+
+`Match`:
+```json
+{
+  "match_id": "m-8b1e42f9c7",
+  "room_code": "AB12CD",
+  "state": "in_progress",
+  "players": [{"id": "usr-3f2a91c4d8", "username": "ken2000", "joined_at": 1760000000001}],
+  "turn_order": ["usr-3f2a91c4d8", "usr-a91c4d8f3", "usr-f3a91c4d82"],
+  "current_turn": "t-57a30c9d11",
+  "scores": {"usr-3f2a91c4d8": 1},
+  "created_at": 1760000000000
+}
+```
+
+- `turn_order` se genera aleatoriamente al inicializar (RF-PAR-003) y no se recalcula si un jugador abandona (RN-017/RN-022).
+- `scores` se actualiza tras cada `turn.result` (RF-PUN-002).
+- Transiciones (4.4.2): `created` → `initialized` (RF-PAR-002) → `in_progress` (primer turno) → `finished` (RF-PAR-006; también si quedan menos de 2 activos, RN-017).
+- Eventos WS: `match.started` (RF-COM-005) · `match.finished` (RF-COM-009).
+
+### B.2.5 Módulo de turnos (RF-TUR-001 a 011)
+
+| Método | Ruta | Auth | Request | Response 2xx | Errores específicos |
+| --- | --- | --- | --- | --- | --- |
+| POST | `/api/v1/matches/{match_id}/phrase` | Sí | `{phrase, secret_score}` | `200` → `{turn_id}` | `NOT_AUTHOR` · `NOT_ACTIVE` · `PHRASE_INVALID` · `SCORE_INVALID` · `ALREADY_SUBMITTED` · `TURN_FINISHED` |
+| POST | `/api/v1/matches/{match_id}/votes` | Sí | `{score}` | `200` → `{turn_id}` | `NOT_VOTING` · `ALREADY_VOTED` · `SCORE_INVALID` · `NOT_IN_MATCH` · `TURN_FINISHED` |
+
+`Turn`:
+```json
+{
+  "turn_id": "t-57a30c9d11",
+  "match_id": "m-8b1e42f9c7",
+  "author_id": "usr-3f2a91c4d8",
+  "state": "active",
+  "phrase": null,
+  "secret_score": null,
+  "expires_at": 1760000030000,
+  "votes": [],
+  "votes_count": 0
+}
+```
+
+- Restricciones de entrada: `phrase` de 3 a 200 caracteres (RF-TUR-004); `secret_score` y `score` enteros entre 1 y 10 (RN-012, RN-015).
+- Tiempos configurables (AD-006): autor `AUTHOR_TIMEOUT_SECONDS=60`, votación `VOTING_TIMEOUT_SECONDS=30`. Los vencimientos vienen en `expires_at` (epoch ms) dentro de `turn.started` y `turn.voting.started`.
+- Transiciones (4.4.3): `active` → `voting` (frase+secreto registrados) o `discarded` (expira autor / abandona autor, RN-017); `voting` → `finished` (todos votan o expira votación) o `discarded`.
+- Eventos WS: `turn.started` · `turn.phrase.submitted` · `turn.voting.started` · `vote.received` · `turn.voting.stopped` · `turn.result` (RF-COM-006, RF-TUR-010).
+
+### B.2.6 Módulo de puntuación (RF-PUN-001 a 004)
+
+| Método | Ruta | Auth | Request | Response 2xx | Errores específicos |
+| --- | --- | --- | --- | --- | --- |
+| GET | `/api/v1/matches/{match_id}/scoreboard` | Sí | `—` | `200` → `{round, scores}` | `MATCH_NOT_FOUND` |
+| GET | `/api/v1/matches/{match_id}/result` | Sí | `—` | `200` → `{winner_id: string \| null, tied: bool, scores}` | `MATCH_NOT_FOUND` · `MATCH_NOT_FINISHED` |
+
+- Sistema de puntos (RF-PUN-001, RN-018/RN-019): el autor obtiene 1 punto por cada voto que acierte exactamente el `secret_score`. Solo el autor suma puntos.
+- Empate: si dos o más jugadores terminan con el mayor puntaje, `winner_id=null` y `tied=true` (RN-023). El resultado final sólo es consultable con `match.state=finished` (RF-PAR-007).
+- Eventos WS: `scoreboard.updated` (RF-COM-008).
+
+### B.2.7 Módulo de comunicación en tiempo real (RF-COM-001 a 010)
+
+- **Handshake**: `wss://host/api/v1/ws?token=<access_token>`. La sesión se asocia al `user_id` del token; una misma cuenta sólo mantiene una conexión activa (RF-COM-002).
+- **Protocolo**: mensajes del servidor al cliente con envoltura única `{type, timestamp, data}`. Los mensajes cliente → servidor van por REST; el canal WS es de *push* unidireccional del servidor (decisión AD-004).
+- **Heartbeat**: el servidor responde `server.pong` a `client.ping` enviado por el cliente cada 30 s; ante dos pings sin respuesta se aplica el flujo de desconexión de RF-COM-010.
+- **Catálogo completo de eventos**:
+
+  | Evento | data | Emitido cuando |
+  | --- | --- | --- |
+  | `room.updated` | `{code, state, modality, players[]}` | Cambia el roster o el estado de una sala (RF-COM-004) |
+  | `room.cancelled` | `{code}` | El creador cancela la sala antes de iniciar (RF-SAL-006) |
+  | `match.started` | `{match_id, room_code, order[], first_author}` | Inicia la partida; reparte `turn_order` (RF-COM-005, RF-PAR-003) |
+  | `turn.started` | `{turn_id, author_id, expires_at}` | Comienza un turno; solo el autor puede operar (RF-TUR-002) |
+  | `turn.phrase.submitted` | `{turn_id, phrase}` | El autor registra frase y secreto y se abre la votación (RF-COM-006) |
+  | `turn.voting.started` | `{turn_id, expires_at}` | Etapa de votación; los votantes emiten `score` (RF-TUR-006) |
+  | `vote.received` | `{turn_id, votes_count}` | Cada voto válido registrado; oculta su valor (RN-016) |
+  | `turn.voting.stopped` | `{turn_id}` | Todos votaron o expiró el tiempo de votación (RF-TUR-009) |
+  | `turn.result` | `{turn_id, author_id, secret_score, votes[{voter, value}], points}` | Publica el secreto y el detalle de votos del turno (RF-TUR-010) |
+  | `scoreboard.updated` | `{scores}` | Puntos recalculados tras un turno (RF-COM-008, RF-PUN-002) |
+  | `match.finished` | `{winner_id: string \| null, tied, scores}` | La ronda completa o quedan menos de 2 activos (RF-COM-009, RN-023) |
+  | `player.disconnected` | `{player_id, reason: "timeout" \| "leave"}` | Desconexión definitiva de un jugador (RF-COM-010) |
+  | `error` | `{code, message, details}` | Cualquier condición de error de negocio en el canal (B.5) |
+
+### B.2.8 Módulo de persistencia (RF-PER-001 a 005)
+
+No expone contratos front-back: su superficie es interna (almacén PostgreSQL, DDD cap. 3). Los módulos anteriores persisten a través de él (usuarios, modalidades y frase completa de cada turno, RF-PER-005); el resto del estado de juego es efímero en memoria (AD-003, RN-024).
+
+## B.3 Catálogo consolidado de endpoints REST
 
 | Método | Ruta | Autenticación | Descripción | Entrada → Salida |
 | --- | --- | --- | --- | --- |
@@ -831,14 +1031,14 @@ Se definen los contratos que los clientes consumen. Todos los intercambios usan 
 | GET | /api/v1/matches/{match_id}/scoreboard | Sí | Consultar marcador | — → 200 scores |
 | GET | /api/v1/matches/{match_id}/result | Sí | Resultado final | — → 200 {winner\|tie, scores} |
 
-## B.2 Eventos WebSocket (push)
+## B.4 Catálogo consolidado de eventos WebSocket (push)
 
 | Evento | Dirección | Contenido (data) |
 | --- | --- | --- |
 | room.updated | server → client | code, players[], state, modality |
 | room.cancelled | server → client | code |
 | match.started | server → client | match_id, order[], first_author |
-| turn.started | server → client | turn_id, author_id |
+| turn.started | server → client | turn_id, author_id, expires_at |
 | turn.phrase.submitted | server → client | phrase |
 | turn.voting.started | server → client | turn_id, expires_at |
 | vote.received | server → client | turn_id, votes_count |
@@ -849,44 +1049,74 @@ Se definen los contratos que los clientes consumen. Todos los intercambios usan 
 | player.disconnected | server → client | player_id, reason |
 | error | server → client | code, message |
 
-## B.3 Formato de error estándar
+## B.5 Formato de error estándar
 
-```
+```json
 {
-"error": {
-"code": "USERNAME_TAKEN",
-"message": "El nombre de usuario ya se encuentra registrado.",
-"details": {}
-}
+  "error": {
+    "code": "USERNAME_TAKEN",
+    "message": "El nombre de usuario ya se encuentra registrado.",
+    "details": {}
+  }
 }
 ```
 
-## B.4 Ejemplo de contrato de sala y de turno
+| Campo | Tipo | Descripción |
+| --- | --- | --- |
+| `code` | string | Código máquina estable, agrupable por frontend para i18n (ej. `ROOM_FULL`). |
+| `message` | string | Descripción legible en el idioma de la respuesta. |
+| `details` | object | Contexto adicional: `{field: "error"}` en validaciones, `retry_after` en bloqueos, etc. |
+
+Códigos transversales:
+
+| Código | HTTP | Uso |
+| --- | --- | --- |
+| `VALIDATION_ERROR` | 422 | Formato/campos inválidos; `details` lista cada campo con su error. |
+| `TOKEN_INVALID` | 401 | Token ausente, malformado o revocado. |
+| `TOKEN_EXPIRED` | 401 | Sesión vencida. |
+| `FORBIDDEN` | 403 | El actor no tiene el rol exigido (ej. no es el creador). |
+| `RATE_LIMITED` | 429 | Supera el límite de solicitudes por ventana. |
+| `INTERNAL_ERROR` | 500 | Fallo no controlado; no se detalla internamente. |
+
+## B.6 Ejemplo de contrato de sala y de turno
 
 Sala (respuesta de creación):
 
-```
+```json
 {
-"code": "AB12CD",
-"creator": "usuario-1",
-"modality": {"id": 1, "template": "Es un 10 pero..."},
-"state": "available",
-"players": [{"id": "usuario-1", "username": "ken2000"}],
-"max_players": 6
+  "code": "AB12CD",
+  "creator": "usuario-1",
+  "modality": {"id": 1, "template": "Es un 10 pero..."},
+  "state": "available",
+  "players": [{"id": "usuario-1", "username": "ken2000"}],
+  "max_players": 6
 }
 ```
 
 Evento de resultado de turno:
 
-```
+```json
 {
-"type": "turn.result",
-"data": {
-"turn_id": "t-42",
-"author_id": "usuario-3",
-"secret_score": 8,
-"votes": [{"voter": "usuario-1", "value": 8}, {"voter": "usuario-2", "value": 5}],
-"points": 1
-}
+  "type": "turn.result",
+  "timestamp": 1760000040000,
+  "data": {
+    "turn_id": "t-42",
+    "author_id": "usuario-3",
+    "secret_score": 8,
+    "votes": [{"voter": "usuario-1", "value": 8}, {"voter": "usuario-2", "value": 5}],
+    "points": 1
+  }
 }
 ```
+
+Secuencia de un turno completo (REST en cursiva, WS en negrita):
+
+1. _`POST /rooms/{code}/start`_ → `{match_id}` (RF-SAL-005).
+2. **`match.started`** reparte `order[]` y `first_author` (RF-COM-005).
+3. **`turn.started`** `{turn_id, author_id, expires_at}` (RF-COM-006).
+4. _`POST /matches/{match_id}/phrase`_ `{phrase, secret_score}` (solo autor) → `{turn_id}`.
+5. **`turn.phrase.submitted`** muestra la frase → **`turn.voting.started`** `{expires_at}` (RF-TUR-006).
+6. _`POST /matches/{match_id}/votes`_ `{score}` (cada votante); **`vote.received`** informa el conteo sin revelar valores (RN-016).
+7. **`turn.voting.stopped`** → **`turn.result`** revela secreto, votos y puntos (RF-TUR-010).
+8. **`scoreboard.updated`** actualiza el marcador (RF-COM-008).
+9. Al completarse la ronda, **`match.finished`** con `winner_id`/`tied` y puntajes finales (RF-COM-009).
