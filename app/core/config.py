@@ -15,6 +15,13 @@ class Settings(BaseSettings):
     app_version: str = "0.1.0"
     debug: bool = False
 
+    token_ttl_seconds: int = 86400
+    verify_token_ttl_seconds: int = 86400
+    reset_token_ttl_seconds: int = 3600
+    max_login_attempts: int = 5
+    lockout_seconds: int = 300
+    email_provider: str = "console"
+
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
 

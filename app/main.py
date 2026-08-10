@@ -1,25 +1,74 @@
 """Punto de entrada de la API del juego "Es un 10 pero…"."""
 
-from fastapi import FastAPI
+from fastapi import APIRouter, FastAPI
+from fastapi.exceptions import RequestValidationError
 
-from app.core.config import get_settings
-
-settings = get_settings()
-
-app = FastAPI(
-    title=settings.app_name,
-    description="Videojuego multijugador por turnos — API REST",
-    version=settings.app_version,
+from app.api.errors import (
+    ApiError,
+    api_error_handler,
+    unhandled_error_handler,
+    validation_error_handler,
 )
+from app.api.routers import auth, modalities, users
+from app.core.config import Settings, get_settings
+from app.email.provider import ConsoleEmailProvider
+from app.services.auth_service import AuthService
+from app.services.users_service import UsersService
+from app.stores.memory import MemorySessionStore, MemoryUserStore, MemoryVerificationStore
 
 
-@app.get("/")
-def root() -> dict:
-    """Información básica de la API."""
-    return {"name": "Es un 10 pero…", "version": "0.1.0"}
+def create_app(
+    settings: Settings | None = None,
+    outbox: list[tuple[str, str, str]] | None = None,
+) -> FastAPI:
+    settings = settings or get_settings()
+
+    app = FastAPI(
+        title=settings.app_name,
+        description="Videojuego multijugador por turnos — API REST",
+        version=settings.app_version,
+    )
+
+    user_store = MemoryUserStore()
+    session_store = MemorySessionStore()
+    verification_store = MemoryVerificationStore()
+    email_provider = ConsoleEmailProvider(outbox)
+
+    auth_service = AuthService(
+        settings=settings,
+        users=user_store,
+        sessions=session_store,
+        verifications=verification_store,
+        emails=email_provider,
+    )
+    users_service = UsersService(users=user_store, auth_service=auth_service)
+
+    app.state.auth_service = auth_service
+    app.state.users_service = users_service
+    app.state.email_provider = email_provider
+
+    app.add_exception_handler(ApiError, api_error_handler)
+    app.add_exception_handler(RequestValidationError, validation_error_handler)
+    if not settings.debug:
+        app.add_exception_handler(Exception, unhandled_error_handler)
+
+    api = APIRouter(prefix="/api/v1")
+    api.include_router(auth.router)
+    api.include_router(users.router)
+    api.include_router(modalities.router)
+    app.include_router(api)
+
+    @app.get("/")
+    def root() -> dict:
+        """Información básica de la API."""
+        return {"name": settings.app_name, "version": settings.app_version}
+
+    @app.get("/health")
+    def health() -> dict:
+        """Health check para monitorear que el servidor está operativo."""
+        return {"status": "ok"}
+
+    return app
 
 
-@app.get("/health")
-def health() -> dict:
-    """Health check para monitorear que el servidor está operativo."""
-    return {"status": "ok"}
+app = create_app()
