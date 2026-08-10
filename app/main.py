@@ -2,10 +2,14 @@
 
 from fastapi import FastAPI
 
+from app.core.config import get_settings
+
+settings = get_settings()
+
 app = FastAPI(
-    title="Es un 10 pero…",
+    title=settings.app_name,
     description="Videojuego multijugador por turnos — API REST",
-    version="0.1.0",
+    version=settings.app_version,
 )
 
 
