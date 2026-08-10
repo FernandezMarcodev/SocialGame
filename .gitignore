@@ -1,0 +1,30 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+env/
+
+# Tests / coverage
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Environments y secretos
+.env
+.env.*
+!.env.example
+
+# IDE / sistema
+.idea/
+.vscode/
+*.swp
+.DS_Store
+
+# Docker
+*.log
+
+# Documentos fuente (.docx) — la fuente de verdad es docs/*.md
+*.docx
+*:Zone.Identifier
