@@ -4,7 +4,7 @@ Mientras no exista persistencia (feature de PostgreSQL), la API usa almacenes
 en memoria por proceso, coherente con AD-002/AD-003.
 """
 
-from app.domain.entities import Session, User, VerificationToken
+from app.domain.entities import PlayerRef, Room, Session, User, VerificationToken
 
 
 class MemoryUserStore:
@@ -63,3 +63,53 @@ class MemoryVerificationStore:
         token = self._tokens.get(token_hash)
         if token is not None:
             token.used = True
+
+
+class MemoryRoomStore:
+    def __init__(self) -> None:
+        self._rooms: dict[str, Room] = {}
+        self._player_room: dict[str, str] = {}
+
+    def add(self, room: Room) -> None:
+        self._rooms[room.code] = room
+        for player in room.players:
+            self._player_room[player.id] = room.code
+
+    def get(self, code: str) -> Room | None:
+        return self._rooms.get(code)
+
+    def remove(self, code: str) -> None:
+        room = self._rooms.pop(code, None)
+        if room is not None:
+            for player in room.players:
+                self._player_room.pop(player.id, None)
+
+    def get_room_by_player(self, user_id: str) -> Room | None:
+        code = self._player_room.get(user_id)
+        if code is None:
+            return None
+        return self._rooms.get(code)
+
+    def add_player(self, code: str, player: PlayerRef) -> None:
+        room = self._rooms.get(code)
+        if room is None:
+            return
+        room.players.append(player)
+        self._player_room[player.id] = code
+
+    def remove_player(self, code: str, player_id: str) -> None:
+        room = self._rooms.get(code)
+        if room is None:
+            return
+        room.players = [p for p in room.players if p.id != player_id]
+        self._player_room.pop(player_id, None)
+
+    def set_creator(self, code: str, creator_id: str) -> None:
+        room = self._rooms.get(code)
+        if room is not None:
+            room.creator_id = creator_id
+
+    def set_state(self, code: str, state: str) -> None:
+        room = self._rooms.get(code)
+        if room is not None:
+            room.state = state

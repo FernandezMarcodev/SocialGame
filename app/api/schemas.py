@@ -74,3 +74,28 @@ class ModalityOut(BaseModel):
     id: int
     name: str
     template: str
+
+
+class RoomCreateIn(BaseModel):
+    modality_id: int
+
+
+class PlayerOut(BaseModel):
+    id: str
+    username: str
+    joined_at: int
+
+
+class RoomOut(BaseModel):
+    code: str
+    state: str
+    creator_id: str
+    modality: ModalityOut
+    players: list[PlayerOut]
+    min_players: int
+    max_players: int
+    created_at: int
+
+
+class MatchStartOut(BaseModel):
+    match_id: str

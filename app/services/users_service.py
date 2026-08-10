@@ -4,15 +4,11 @@ Implementa los RF-USR-005 a 007 y el catálogo precargado de AD-007.
 """
 
 from app.api.errors import ApiError
-from app.api.schemas import ModalityOut, UserOut
+from app.api.schemas import UserOut
 from app.domain.entities import User
 from app.services.auth_service import _profile_image_url
+from app.services.catalog import MODALITIES
 from app.stores.base import UserStore
-
-_MODALITIES = [
-    ModalityOut(id=1, name="Es un 10 pero...", template="Es un 10 pero ..."),
-    ModalityOut(id=2, name="Mi día es un 10 pero...", template="Mi día es un 10 pero ..."),
-]
 
 
 class UsersService:
@@ -42,4 +38,4 @@ class UsersService:
         return UserOut.model_validate(user)
 
     def list_modalities(self) -> dict:
-        return {"items": _MODALITIES, "total": len(_MODALITIES)}
+        return {"items": list(MODALITIES), "total": len(MODALITIES)}

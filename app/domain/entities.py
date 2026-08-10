@@ -32,3 +32,22 @@ class VerificationToken:
     kind: str
     expires_at: int
     used: bool = False
+
+
+@dataclass
+class PlayerRef:
+    id: str
+    username: str
+    joined_at: int
+
+
+@dataclass
+class Room:
+    code: str
+    creator_id: str
+    modality_id: int
+    state: str
+    players: list[PlayerRef]
+    min_players: int
+    max_players: int
+    created_at: int

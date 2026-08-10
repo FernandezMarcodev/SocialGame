@@ -21,6 +21,8 @@ class Settings(BaseSettings):
     max_login_attempts: int = 5
     lockout_seconds: int = 300
     email_provider: str = "console"
+    room_min_players: int = 2
+    room_max_players: int = 6
 
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 

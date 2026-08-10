@@ -9,12 +9,18 @@ from app.api.errors import (
     unhandled_error_handler,
     validation_error_handler,
 )
-from app.api.routers import auth, modalities, users
+from app.api.routers import auth, modalities, rooms, users
 from app.core.config import Settings, get_settings
 from app.email.provider import ConsoleEmailProvider
 from app.services.auth_service import AuthService
+from app.services.room_service import RoomService
 from app.services.users_service import UsersService
-from app.stores.memory import MemorySessionStore, MemoryUserStore, MemoryVerificationStore
+from app.stores.memory import (
+    MemoryRoomStore,
+    MemorySessionStore,
+    MemoryUserStore,
+    MemoryVerificationStore,
+)
 
 
 def create_app(
@@ -32,6 +38,7 @@ def create_app(
     user_store = MemoryUserStore()
     session_store = MemorySessionStore()
     verification_store = MemoryVerificationStore()
+    room_store = MemoryRoomStore()
     email_provider = ConsoleEmailProvider(outbox)
 
     auth_service = AuthService(
@@ -42,9 +49,11 @@ def create_app(
         emails=email_provider,
     )
     users_service = UsersService(users=user_store, auth_service=auth_service)
+    rooms_service = RoomService(settings=settings, users=user_store, rooms=room_store)
 
     app.state.auth_service = auth_service
     app.state.users_service = users_service
+    app.state.rooms_service = rooms_service
     app.state.email_provider = email_provider
 
     app.add_exception_handler(ApiError, api_error_handler)
@@ -56,6 +65,7 @@ def create_app(
     api.include_router(auth.router)
     api.include_router(users.router)
     api.include_router(modalities.router)
+    api.include_router(rooms.router)
     app.include_router(api)
 
     @app.get("/")
