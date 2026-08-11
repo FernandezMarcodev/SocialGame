@@ -8,7 +8,7 @@ from app.api.schemas import ModalityOut
 
 MODALITIES: list[ModalityOut] = [
     ModalityOut(id=1, name="Es un 10 pero...", template="Es un 10 pero ..."),
-    ModalityOut(id=2, name="Mi día es un 10 pero...", template="Mi día es un 10 pero ..."),
+    ModalityOut(id=2, name="Es un 1 pero...", template="Es un 1 pero ..."),
 ]
 
 
