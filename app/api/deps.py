@@ -16,6 +16,10 @@ def get_users_service(request: Request):
     return request.app.state.users_service
 
 
+def get_rooms_service(request: Request):
+    return request.app.state.rooms_service
+
+
 def get_current_user(
     credentials: HTTPAuthorizationCredentials | None = Depends(bearer),
     auth_service=Depends(get_auth_service),
