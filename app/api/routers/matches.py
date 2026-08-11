@@ -2,9 +2,10 @@
 
 from fastapi import APIRouter, Depends
 
-from app.api.deps import get_current_user, get_matches_service
+from app.api.deps import get_current_user, get_matches_service, get_turns_service
 from app.api.schemas import MatchOut
 from app.services.match_service import MatchService
+from app.services.turn_service import TurnService
 
 router = APIRouter(prefix="/matches", tags=["matches"])
 
@@ -14,5 +15,7 @@ def get_match(
     match_id: str,
     user=Depends(get_current_user),
     matches: MatchService = Depends(get_matches_service),
+    turns: TurnService = Depends(get_turns_service),
 ) -> MatchOut:
+    turns.settle_expired(match_id)
     return matches.serialize(matches.get_match(match_id))

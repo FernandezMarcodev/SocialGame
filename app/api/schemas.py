@@ -110,3 +110,36 @@ class MatchOut(BaseModel):
     current_turn: str | None
     scores: dict[str, int]
     created_at: int
+
+
+class PhraseIn(BaseModel):
+    phrase: str = Field(min_length=3, max_length=200)
+    secret_score: int = Field(ge=1, le=10)
+
+
+class VoteIn(BaseModel):
+    score: int = Field(ge=1, le=10)
+
+
+class VoteOut(BaseModel):
+    voter_id: str
+    value: int
+
+
+class TurnOut(BaseModel):
+    turn_id: str
+    match_id: str
+    author_id: str
+    state: str
+    phrase: str | None
+    secret_score: int | None
+    created_at: int
+    expires_at: int
+    voting_ends_at: int | None
+    votes: list[VoteOut]
+    votes_count: int
+    points: int
+
+
+class TurnIdOut(BaseModel):
+    turn_id: str

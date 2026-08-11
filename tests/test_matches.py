@@ -69,11 +69,11 @@ class TestMatchHttp:
         data = resp.json()
         assert data["match_id"] == match_id
         assert data["room_code"] == room_code
-        assert data["state"] == "initialized"
+        assert data["state"] == "in_progress"
         assert len(data["players"]) == 2
         assert len(data["turn_order"]) == 2
         assert set(data["turn_order"]) == {me["id"], other["id"]}
-        assert data["current_turn"] is None
+        assert isinstance(data["current_turn"], str) and data["current_turn"].startswith("t-")
         assert data["scores"] == {me["id"]: 0, other["id"]: 0}
 
     def test_get_match_not_found(self, client, outbox):

@@ -15,6 +15,7 @@ from app.core.security import utcnow_ms
 from app.domain.entities import PlayerRef, Room, User
 from app.services.catalog import get_modality
 from app.services.match_service import MatchService
+from app.services.turn_service import TurnService
 from app.stores.base import RoomStore
 
 _ROOM_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"
@@ -30,11 +31,13 @@ class RoomService:
         settings: Settings,
         rooms: RoomStore,
         matches: MatchService,
+        turns: TurnService,
         now: Callable[[], int] | None = None,
     ) -> None:
         self._settings = settings
         self._rooms = rooms
         self._matches = matches
+        self._turns = turns
         self._now = now or utcnow_ms
 
     def _player_ref(self, user: User) -> PlayerRef:
@@ -140,5 +143,6 @@ class RoomService:
             )
         match = self._matches.create_match(room, user.id)
         self._matches.initialize_match(match.match_id)
+        self._turns.start_match(match.match_id)
         self._rooms.set_state(code, "in_match")
         return {"match_id": match.match_id}
