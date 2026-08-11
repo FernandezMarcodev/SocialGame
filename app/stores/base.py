@@ -2,7 +2,7 @@
 
 from typing import Protocol
 
-from app.domain.entities import PlayerRef, Room, Session, User, VerificationToken
+from app.domain.entities import Match, PlayerRef, Room, Session, User, VerificationToken
 
 
 class UserStore(Protocol):
@@ -49,3 +49,11 @@ class RoomStore(Protocol):
     def set_creator(self, code: str, creator_id: str) -> None: ...
 
     def set_state(self, code: str, state: str) -> None: ...
+
+
+class MatchStore(Protocol):
+    def add(self, match: Match) -> None: ...
+
+    def get(self, match_id: str) -> Match | None: ...
+
+    def get_by_room(self, room_code: str) -> Match | None: ...

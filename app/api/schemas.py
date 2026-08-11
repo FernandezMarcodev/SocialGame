@@ -99,3 +99,14 @@ class RoomOut(BaseModel):
 
 class MatchStartOut(BaseModel):
     match_id: str
+
+
+class MatchOut(BaseModel):
+    match_id: str
+    room_code: str
+    state: str
+    players: list[PlayerOut]
+    turn_order: list[str]
+    current_turn: str | None
+    scores: dict[str, int]
+    created_at: int

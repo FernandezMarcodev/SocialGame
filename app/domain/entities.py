@@ -51,3 +51,17 @@ class Room:
     min_players: int
     max_players: int
     created_at: int
+
+
+@dataclass
+class Match:
+    match_id: str
+    room_code: str
+    modality_id: int
+    state: str
+    players: list[PlayerRef]
+    turn_order: list[str]
+    turn_index: int
+    current_turn: str | None
+    scores: dict[str, int]
+    created_at: int
