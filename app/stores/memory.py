@@ -4,7 +4,16 @@ Mientras no exista persistencia (feature de PostgreSQL), la API usa almacenes
 en memoria por proceso, coherente con AD-002/AD-003.
 """
 
-from app.domain.entities import Match, PlayerRef, Room, Session, User, VerificationToken
+from app.domain.entities import (
+    Match,
+    PlayerRef,
+    Room,
+    Session,
+    Turn,
+    User,
+    VerificationToken,
+    Vote,
+)
 
 
 class MemoryUserStore:
@@ -132,3 +141,14 @@ class MemoryMatchStore:
         if match_id is None:
             return None
         return self._matches.get(match_id)
+
+
+class MemoryTurnStore:
+    def __init__(self) -> None:
+        self._turns: dict[str, Turn] = {}
+
+    def add(self, turn: Turn) -> None:
+        self._turns[turn.turn_id] = turn
+
+    def get(self, turn_id: str) -> Turn | None:
+        return self._turns.get(turn_id)

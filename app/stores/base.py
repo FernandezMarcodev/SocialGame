@@ -2,7 +2,15 @@
 
 from typing import Protocol
 
-from app.domain.entities import Match, PlayerRef, Room, Session, User, VerificationToken
+from app.domain.entities import (
+    Match,
+    PlayerRef,
+    Room,
+    Session,
+    Turn,
+    User,
+    VerificationToken,
+)
 
 
 class UserStore(Protocol):
@@ -57,3 +65,9 @@ class MatchStore(Protocol):
     def get(self, match_id: str) -> Match | None: ...
 
     def get_by_room(self, room_code: str) -> Match | None: ...
+
+
+class TurnStore(Protocol):
+    def add(self, turn: Turn) -> None: ...
+
+    def get(self, turn_id: str) -> Turn | None: ...

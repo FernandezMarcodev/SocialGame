@@ -23,6 +23,8 @@ class Settings(BaseSettings):
     email_provider: str = "console"
     room_min_players: int = 2
     room_max_players: int = 6
+    author_timeout_seconds: int = 60
+    voting_timeout_seconds: int = 30
 
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
