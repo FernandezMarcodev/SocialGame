@@ -9,12 +9,13 @@ from app.api.errors import (
     unhandled_error_handler,
     validation_error_handler,
 )
-from app.api.routers import auth, matches, modalities, rooms, turns, users
+from app.api.routers import auth, matches, modalities, rooms, scoring, turns, users
 from app.core.config import Settings, get_settings
 from app.email.provider import ConsoleEmailProvider
 from app.services.auth_service import AuthService
 from app.services.match_service import MatchService
 from app.services.room_service import RoomService
+from app.services.scoring_service import ScoringService
 from app.services.turn_service import TurnService
 from app.services.users_service import UsersService
 from app.stores.memory import (
@@ -55,8 +56,12 @@ def create_app(
     )
     users_service = UsersService(users=user_store, auth_service=auth_service)
     match_service = MatchService(matches=match_store, rooms=room_store)
+    scoring_service = ScoringService(matches=match_service)
     turn_service = TurnService(
-        settings=settings, matches=match_service, turns=MemoryTurnStore()
+        settings=settings,
+        matches=match_service,
+        turns=MemoryTurnStore(),
+        scoring=scoring_service,
     )
     rooms_service = RoomService(
         settings=settings, rooms=room_store, matches=match_service, turns=turn_service
@@ -67,6 +72,7 @@ def create_app(
     app.state.rooms_service = rooms_service
     app.state.matches_service = match_service
     app.state.turns_service = turn_service
+    app.state.scoring_service = scoring_service
     app.state.email_provider = email_provider
 
     app.add_exception_handler(ApiError, api_error_handler)
@@ -81,6 +87,7 @@ def create_app(
     api.include_router(rooms.router)
     api.include_router(matches.router)
     api.include_router(turns.router)
+    api.include_router(scoring.router)
     app.include_router(api)
 
     @app.get("/")
