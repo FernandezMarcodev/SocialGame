@@ -9,13 +9,15 @@ from app.api.errors import (
     unhandled_error_handler,
     validation_error_handler,
 )
-from app.api.routers import auth, modalities, rooms, users
+from app.api.routers import auth, matches, modalities, rooms, users
 from app.core.config import Settings, get_settings
 from app.email.provider import ConsoleEmailProvider
 from app.services.auth_service import AuthService
+from app.services.match_service import MatchService
 from app.services.room_service import RoomService
 from app.services.users_service import UsersService
 from app.stores.memory import (
+    MemoryMatchStore,
     MemoryRoomStore,
     MemorySessionStore,
     MemoryUserStore,
@@ -39,6 +41,7 @@ def create_app(
     session_store = MemorySessionStore()
     verification_store = MemoryVerificationStore()
     room_store = MemoryRoomStore()
+    match_store = MemoryMatchStore()
     email_provider = ConsoleEmailProvider(outbox)
 
     auth_service = AuthService(
@@ -49,11 +52,15 @@ def create_app(
         emails=email_provider,
     )
     users_service = UsersService(users=user_store, auth_service=auth_service)
-    rooms_service = RoomService(settings=settings, rooms=room_store)
+    match_service = MatchService(matches=match_store, rooms=room_store)
+    rooms_service = RoomService(
+        settings=settings, rooms=room_store, matches=match_service
+    )
 
     app.state.auth_service = auth_service
     app.state.users_service = users_service
     app.state.rooms_service = rooms_service
+    app.state.matches_service = match_service
     app.state.email_provider = email_provider
 
     app.add_exception_handler(ApiError, api_error_handler)
@@ -66,6 +73,7 @@ def create_app(
     api.include_router(users.router)
     api.include_router(modalities.router)
     api.include_router(rooms.router)
+    api.include_router(matches.router)
     app.include_router(api)
 
     @app.get("/")

@@ -7,7 +7,6 @@ memoria (AD-003): ``available`` → ``in_match`` | ``cancelled`` → ``deleted``
 
 import secrets
 from typing import Callable
-from uuid import uuid4
 
 from app.api.errors import ApiError
 from app.api.schemas import ModalityOut, PlayerOut, RoomOut
@@ -15,18 +14,14 @@ from app.core.config import Settings
 from app.core.security import utcnow_ms
 from app.domain.entities import PlayerRef, Room, User
 from app.services.catalog import get_modality
+from app.services.match_service import MatchService
 from app.stores.base import RoomStore
 
 _ROOM_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"
-_MATCH_ID_PREFIX = "m-"
 
 
 def _new_room_code() -> str:
     return "".join(secrets.choice(_ROOM_ALPHABET) for _ in range(6))
-
-
-def _new_match_id() -> str:
-    return _MATCH_ID_PREFIX + uuid4().hex[:10]
 
 
 class RoomService:
@@ -34,10 +29,12 @@ class RoomService:
         self,
         settings: Settings,
         rooms: RoomStore,
+        matches: MatchService,
         now: Callable[[], int] | None = None,
     ) -> None:
         self._settings = settings
         self._rooms = rooms
+        self._matches = matches
         self._now = now or utcnow_ms
 
     def _player_ref(self, user: User) -> PlayerRef:
@@ -141,5 +138,7 @@ class RoomService:
                 "MIN_PLAYERS_NOT_REACHED",
                 f"Se necesitan al menos {room.min_players} jugadores.",
             )
+        match = self._matches.create_match(room, user.id)
+        self._matches.initialize_match(match.match_id)
         self._rooms.set_state(code, "in_match")
-        return {"match_id": _new_match_id()}
+        return {"match_id": match.match_id}
