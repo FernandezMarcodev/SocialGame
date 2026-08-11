@@ -14,3 +14,7 @@ MODALITIES: list[ModalityOut] = [
 
 def get_modality(modality_id: int) -> ModalityOut | None:
     return next((m for m in MODALITIES if m.id == modality_id), None)
+
+
+def list_modalities() -> dict:
+    return {"items": list(MODALITIES), "total": len(MODALITIES)}

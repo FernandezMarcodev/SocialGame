@@ -1,4 +1,4 @@
-"""Interfaces (protocolos) de almacenamiento del módulo de autenticación."""
+"""Interfaces (protocolos) de almacenamiento de los módulos de cuentas y salas."""
 
 from typing import Protocol
 

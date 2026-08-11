@@ -49,7 +49,7 @@ def create_app(
         emails=email_provider,
     )
     users_service = UsersService(users=user_store, auth_service=auth_service)
-    rooms_service = RoomService(settings=settings, users=user_store, rooms=room_store)
+    rooms_service = RoomService(settings=settings, rooms=room_store)
 
     app.state.auth_service = auth_service
     app.state.users_service = users_service

@@ -17,6 +17,7 @@ from app.core.security import (
     utcnow_ms,
     validate_password_policy,
 )
+from app.domain.avatars import avatar_url
 from app.domain.entities import Session, User, VerificationToken
 from app.email.provider import EmailProvider
 from app.services.emails import send_password_reset, send_verification
@@ -25,10 +26,6 @@ from app.stores.base import SessionStore, UserStore, VerificationStore
 
 def _new_user_id() -> str:
     return "usr-" + uuid4().hex[:10]
-
-
-def _profile_image_url(username: str) -> str:
-    return f"/avatars/{username[0].lower()}.svg"
 
 
 class AuthService:
@@ -72,7 +69,7 @@ class AuthService:
             username=username,
             email=email,
             password_hash=self._hasher.hash(password),
-            profile_image_url=_profile_image_url(username),
+            profile_image_url=avatar_url(username),
             created_at=self._now(),
         )
         self._users.add(user)
