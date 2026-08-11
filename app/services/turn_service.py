@@ -17,6 +17,7 @@ from app.core.config import Settings
 from app.core.security import utcnow_ms
 from app.domain.entities import Match, Turn, Vote
 from app.services.match_service import MatchService
+from app.services.scoring_service import ScoringService
 from app.stores.base import TurnStore
 
 _TURN_ID_PREFIX = "t-"
@@ -26,21 +27,19 @@ def _new_turn_id() -> str:
     return _TURN_ID_PREFIX + uuid4().hex[:10]
 
 
-def _points_of(turn: Turn) -> int:
-    return sum(1 for v in turn.votes if v.value == turn.secret_score)
-
-
 class TurnService:
     def __init__(
         self,
         settings: Settings,
         matches: MatchService,
         turns: TurnStore,
+        scoring: ScoringService,
         now: Callable[[], int] | None = None,
     ) -> None:
         self._settings = settings
         self._matches = matches
         self._turns = turns
+        self._scoring = scoring
         self._now = now or utcnow_ms
 
     # ------------------------------------------------------------------ #
@@ -193,8 +192,7 @@ class TurnService:
 
     def _finalize(self, turn: Turn, match: Match) -> None:
         turn.state = "finished"
-        turn.points = _points_of(turn)
-        match.scores[turn.author_id] = match.scores.get(turn.author_id, 0) + turn.points
+        self._scoring.apply_turn(turn, match)
 
     def _advance(self, match: Match) -> None:
         match.current_turn = None

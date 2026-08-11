@@ -6,6 +6,7 @@ from app.api.errors import ApiError
 from app.core.config import Settings
 from app.domain.entities import PlayerRef, Room
 from app.services.match_service import MatchService
+from app.services.scoring_service import ScoringService
 from app.services.turn_service import TurnService
 from app.stores.memory import MemoryMatchStore, MemoryRoomStore, MemoryTurnStore
 from tests.test_auth import auth_headers
@@ -201,7 +202,14 @@ class TestTurnServiceUnit:
         settings = Settings(_env_file=None)
         mstore, rstore = MemoryMatchStore(), MemoryRoomStore()
         matches = MatchService(matches=mstore, rooms=rstore, now=clock)
-        turns = TurnService(settings=settings, matches=matches, turns=MemoryTurnStore(), now=clock)
+        scoring = ScoringService(matches=matches)
+        turns = TurnService(
+            settings=settings,
+            matches=matches,
+            turns=MemoryTurnStore(),
+            scoring=scoring,
+            now=clock,
+        )
         room = Room(
             code="AB12CD",
             creator_id="u1",

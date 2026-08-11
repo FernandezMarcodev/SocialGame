@@ -143,3 +143,14 @@ class TurnOut(BaseModel):
 
 class TurnIdOut(BaseModel):
     turn_id: str
+
+
+class ScoreboardOut(BaseModel):
+    round: int
+    scores: dict[str, int]
+
+
+class ResultOut(BaseModel):
+    winner_id: str | None
+    tied: bool
+    scores: dict[str, int]

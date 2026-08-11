@@ -943,8 +943,9 @@ Reglas de negocio no negociables:
 
 | Método | Ruta | Auth | Request | Response 2xx | Errores específicos |
 | --- | --- | --- | --- | --- | --- |
-| POST | `/api/v1/matches/{match_id}/phrase` | Sí | `{phrase, secret_score}` | `200` → `{turn_id}` | `NOT_AUTHOR` · `NOT_ACTIVE` · `PHRASE_INVALID` · `SCORE_INVALID` · `ALREADY_SUBMITTED` · `TURN_FINISHED` |
+| POST | `/api/v1/matches/{match_id}/phrase` | Sí | `{phrase, secret_score}` | `200` → `{turn_id}` | `NOT_AUTHOR` · `NOT_ACTIVE` · `PHRASE_INVALID` · `SCORE_INVALID` · `ALREADY_SUBMITTED` · `TURN_FINISHED` · `TURN_EXPIRED` |
 | POST | `/api/v1/matches/{match_id}/votes` | Sí | `{score}` | `200` → `{turn_id}` | `NOT_VOTING` · `ALREADY_VOTED` · `SCORE_INVALID` · `NOT_IN_MATCH` · `TURN_FINISHED` |
+| GET | `/api/v1/matches/{match_id}/turns/{turn_id}` | Sí | `—` | `200` → `Turn` | `MATCH_NOT_FOUND` · `TURN_NOT_FOUND` · `NOT_IN_MATCH` |
 
 `Turn`:
 ```json
