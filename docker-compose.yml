@@ -5,3 +5,13 @@ services:
     ports:
       - "8000:8000"
     restart: unless-stopped
+
+  frontend:
+    build:
+      context: ./frontend
+    container_name: es10p-frontend
+    ports:
+      - "5173:80"
+    depends_on:
+      - api
+    restart: unless-stopped

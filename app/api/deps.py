@@ -32,6 +32,10 @@ def get_scoring_service(request: Request):
     return request.app.state.scoring_service
 
 
+def get_event_bus(request: Request):
+    return request.app.state.event_bus
+
+
 def get_current_user(
     credentials: HTTPAuthorizationCredentials | None = Depends(bearer),
     auth_service=Depends(get_auth_service),

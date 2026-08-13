@@ -82,8 +82,27 @@ class TestMatchHttp:
         assert resp.status_code == 404
         assert resp.json()["error"]["code"] == "MATCH_NOT_FOUND"
 
-    def test_matches_endpoint_requires_auth(self, client):
-        resp = client.get("/api/v1/matches/m-0000000000")
+    def test_get_match_by_room_code(self, client, outbox):
+        tokens, room_code, match_id = start_match_http(client, outbox, 2)
+        resp = client.get(
+            f"/api/v1/matches/by-room/{room_code}", headers=auth_headers(tokens[1])
+        )
+        assert resp.status_code == 200, resp.text
+        data = resp.json()
+        assert data["match_id"] == match_id
+        assert data["room_code"] == room_code
+        assert data["state"] == "in_progress"
+
+    def test_get_match_by_room_not_found(self, client, outbox):
+        tokens = make_tokens(client, outbox, 1)
+        resp = client.get(
+            "/api/v1/matches/by-room/ZZZZZZ", headers=auth_headers(tokens[0])
+        )
+        assert resp.status_code == 404
+        assert resp.json()["error"]["code"] == "MATCH_NOT_FOUND"
+
+    def test_get_match_by_room_requires_auth(self, client):
+        resp = client.get("/api/v1/matches/by-room/ZZZZZZ")
         assert resp.status_code == 401
 
 
