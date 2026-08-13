@@ -44,6 +44,50 @@ export function profile(view) {
     }
   }
 
+  // Foto de perfil
+  const avatarWrap = h('div', { class: 'profile-avatar-preview' });
+  function renderAvatarPreview() {
+    avatarWrap.replaceChildren(avatar(currentUser(), 88));
+  }
+  renderAvatarPreview();
+
+  const fileInput = h('input', { type: 'file', accept: 'image/jpeg,image/png,image/webp,image/gif', class: 'input-file' });
+  const fileName = h('span', { class: 'file-name', text: 'Ningún archivo seleccionado' });
+  const chooseLabel = h('label', { class: 'btn btn--glass', text: 'Elegir archivo' });
+  chooseLabel.append(fileInput);
+  fileInput.addEventListener('change', () => {
+    const file = fileInput.files?.[0];
+    if (!file) return;
+    fileName.textContent = file.name;
+    avatarWrap.replaceChildren(
+      h('div', { class: 'avatar avatar--img', style: { width: '88px', height: '88px' } },
+        h('img', { class: 'avatar-img', src: URL.createObjectURL(file), alt: 'preview' })
+      )
+    );
+    uploadBtn.disabled = false;
+  });
+
+  const uploadBtn = h('button', { class: 'btn btn--primary', type: 'button', text: 'Subir foto', disabled: true });
+  uploadBtn.addEventListener('click', async () => {
+    const file = fileInput.files?.[0];
+    if (!file) return;
+    uploadBtn.disabled = true;
+    uploadBtn.classList.add('btn--loading');
+    try {
+      const updated = await api.updateAvatar(file);
+      setUser(updated);
+      renderAvatarPreview();
+      fileInput.value = '';
+      fileName.textContent = 'Ningún archivo seleccionado';
+      toast('Foto de perfil actualizada.', 'success');
+    } catch (err) {
+      toast(err.message, 'error');
+    } finally {
+      uploadBtn.disabled = false;
+      uploadBtn.classList.remove('btn--loading');
+    }
+  });
+
   // Contraseña
   const cur = h('input', { class: 'input', type: 'password', placeholder: 'Contraseña actual' });
   const pw = h('input', { class: 'input', type: 'password', placeholder: 'Nueva contraseña' });
@@ -97,6 +141,20 @@ export function profile(view) {
         h('h1', { class: 'profile-name' }, user?.username),
         h('p', { class: 'profile-email' }, user?.email),
         user?.verified ? pill('Correo verificado', 'success') : pill('Correo sin verificar', 'warning')
+      )
+    ),
+    h('section', { class: 'profile-card' },
+      h('h2', { class: 'panel-title' }, 'Foto de perfil'),
+      h('div', { class: 'profile-avatar-row' },
+        avatarWrap,
+        h('div',
+          h('p', { class: 'field-hint' }, 'JPG, PNG, WEBP o GIF de hasta 2 MB.'),
+          h('div', { class: 'profile-avatar-actions' },
+            chooseLabel,
+            uploadBtn
+          ),
+          fileName
+        )
       )
     ),
     h('section', { class: 'profile-card' },

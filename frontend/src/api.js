@@ -14,7 +14,8 @@ function getToken() {
 }
 
 function headersFor(opts) {
-  const headers = { 'Content-Type': 'application/json' };
+  const headers = {};
+  if (!(opts.body instanceof FormData)) headers['Content-Type'] = 'application/json';
   if (opts.auth !== false) {
     const token = getToken();
     if (token) headers.Authorization = `Bearer ${token}`;
@@ -28,7 +29,7 @@ async function restCall(path, opts = {}) {
     res = await fetch(path, {
       method: opts.method ?? 'GET',
       headers: opts.headers,
-      body: opts.body !== undefined ? JSON.stringify(opts.body) : undefined,
+      body: opts.body instanceof FormData ? opts.body : (opts.body !== undefined ? JSON.stringify(opts.body) : undefined),
     });
   } catch {
     throw new ApiError('No se pudo conectar con el servidor.', { code: 'NETWORK', status: 0 });
@@ -91,6 +92,11 @@ export const api = {
   // Usuarios
   me: () => call('/api/v1/users/me'),
   updateMe: (fields) => call('/api/v1/users/me', { method: 'PATCH', body: fields }),
+  updateAvatar: (file) => {
+    const form = new FormData();
+    form.append('file', file);
+    return call('/api/v1/users/me/avatar', { method: 'PUT', body: form });
+  },
 
   // Modalidades
   modalities: () => call('/api/v1/modalities').then((d) => d?.items ?? []),

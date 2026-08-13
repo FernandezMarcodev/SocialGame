@@ -740,23 +740,28 @@ Trazabilidad de reglas de negocio (RN):
 
 ## 9.3 Diseño → implementación
 
-Mapeo entre los elementos del diseño y los artefactos de implementación previstos (estructura de paquetes de la sección 4.2.1).
+Mapeo entre los elementos del diseño y los artefactos reales del código (estructura verificada en la rama `develop`). Las rutas difieren de la estructura de paquetes prevista en 4.2.1; esta tabla es la fuente de verdad vigente.
 
 | Elemento de diseño | Artefacto de implementación |
 | --- | --- |
-| API REST | app/api/v1/routes/*.py (auth, users, rooms, matches, modalities) |
-| Gateway WebSocket | app/api/v1/ws.py |
-| Servicios de aplicación | app/application/services/*.py |
-| Modelos de dominio | app/domain/models/*.py, app/domain/rules.py, app/domain/events.py |
-| Repositorios | app/infrastructure/repositories/*.py |
-| Stores en memoria | app/infrastructure/stores/*.py |
-| Bus de eventos y ConnectionManager | app/infrastructure/realtime/*.py |
-| Gestor de timers | app/infrastructure/timing/timer_manager.py |
-| Proveedor de email | app/infrastructure/email/*.py |
-| Configuración y seguridad | app/core/config.py, app/core/security.py |
-| Migraciones | alembic/versions/*.py |
-| Pruebas | tests/ (unitarias y de contrato HTTP/WS) |
-| Despliegue | Dockerfile, docker-compose.yml, .env |
+| API REST | `app/api/routers/*.py` (`auth.py`, `users.py`, `modalities.py`, `rooms.py`, `matches.py`, `turns.py`, `scoring.py`) |
+| Gateway WebSocket | `app/api/ws.py` (endpoint `/api/v1/ws`) |
+| Inyección de dependencias | `app/api/deps.py` (`get_event_bus`, `get_current_user`, sesiones, stores) |
+| Esquemas y contratos | `app/api/schemas.py` |
+| Mapa de errores HTTP | `app/api/errors.py` (formato B.5) |
+| Servicios de aplicación | `app/services/*.py` (`auth_service`, `users_service`, `room_service`, `match_service`, `turn_service`, `scoring_service`, `emails`, `catalog`, `realtime_service`) |
+| Modelos de dominio | `app/domain/entities.py` (`Room`, `Match`, `Turn`, `User`), `app/domain/avatars.py` |
+| Contratos de repositorios | `app/stores/base.py` (interfaces `UserStore`, `RoomStore`, etc.) |
+| Stores en memoria | `app/stores/memory.py` (implementación actual; sin base de datos) |
+| Bus de eventos, ConnectionManager y servicio realtime | `app/services/realtime_service.py` (EventBus tolerante a handlers síncronos/async, ConnectionManager, RealtimeService) |
+| Gestor de timers | `app/services/turn_service.py` (tiempos de autor/votación desde `app/core/config.py`) |
+| Proveedor de email | `app/email/provider.py` |
+| Configuración y seguridad | `app/core/config.py` (pydantic-settings), `app/core/security.py` (argon2, tokens, verificaciones) |
+| Archivos estáticos de avatares | `app/main.py` (mount de `/uploads` sobre el volumen `./uploads`) |
+| Migraciones | pendiente (no hay base de datos aún; ver RF-PER en SRS §7.1) |
+| Cliente web (SPA Vite) | `frontend/src/*` (`main.js`, `router.js`, `store.js`, `events.js`, `realtime.js`, `api.js`, `screens/*`) |
+| Pruebas | `tests/` (unitarias y de contrato HTTP/WS; incluye `tests/test_realtime.py`) |
+| Despliegue | `Dockerfile` (api), `docker-compose.yml`, `frontend/Dockerfile` + `frontend/nginx.conf` (proxy WS y `/uploads`) |
 
 # Apéndice A — Registros de Decisión Arquitectónica (ADR)
 
@@ -981,8 +986,8 @@ Reglas de negocio no negociables:
 ### B.2.7 Módulo de comunicación en tiempo real (RF-COM-001 a 010)
 
 - **Handshake**: `wss://host/api/v1/ws?token=<access_token>`. La sesión se asocia al `user_id` del token; una misma cuenta sólo mantiene una conexión activa (RF-COM-002).
-- **Protocolo**: mensajes del servidor al cliente con envoltura única `{type, timestamp, data}`. Los mensajes cliente → servidor van por REST; el canal WS es de *push* unidireccional del servidor (decisión AD-004).
-- **Heartbeat**: el servidor responde `server.pong` a `client.ping` enviado por el cliente cada 30 s; ante dos pings sin respuesta se aplica el flujo de desconexión de RF-COM-010.
+- **Protocolo**: mensajes del servidor al cliente con envoltura única `{event, data}` (la versión inicial `{type, timestamp, data}` se actualizó a la forma implementada; ver RV-009 en SRS §7.5). Los mensajes cliente → servidor van por REST; el canal WS es de *push* unidireccional del servidor (decisión AD-004).
+- **Heartbeat**: el servidor responde `server.pong` a `client.ping` enviado por el cliente cada 30 s; ante dos pings sin respuesta se aplica el flujo de desconexión de RF-COM-010. (Pendiente: el cliente web implementa reconexión con backoff en lugar del ping de 30 s.)
 - **Catálogo completo de eventos**:
 
   | Evento | data | Emitido cuando |
@@ -1000,6 +1005,8 @@ Reglas de negocio no negociables:
   | `match.finished` | `{winner_id: string \| null, tied, scores}` | La ronda completa o quedan menos de 2 activos (RF-COM-009, RN-023) |
   | `player.disconnected` | `{player_id, reason: "timeout" \| "leave"}` | Desconexión definitiva de un jugador (RF-COM-010) |
   | `error` | `{code, message, details}` | Cualquier condición de error de negocio en el canal (B.5) |
+
+> **Estado de implementación (RV-010, SRS §7.5):** por el momento el canal WS emite únicamente `room.updated`, `room.cancelled` y `match.started`. Los eventos de turno, marcador y finalización (`turn.*`, `scoreboard.updated`, `match.finished`, `player.disconnected`) son el diseño objetivo; hoy el frontend los obtiene por polling REST sobre los endpoints de B.3.
 
 ### B.2.8 Módulo de persistencia (RF-PER-001 a 005)
 
@@ -1019,6 +1026,7 @@ No expone contratos front-back: su superficie es interna (almacén PostgreSQL, D
 | POST | /api/v1/auth/reset-password | No | Restablecer contraseña | token, new_password → 200 |
 | GET | /api/v1/users/me | Sí | Consultar perfil propio | — → 200 user |
 | PATCH | /api/v1/users/me | Sí | Modificar perfil | username/email opcionales → 200 user |
+| PUT | /api/v1/users/me/avatar | Sí | Cargar foto de perfil (RV-001) | multipart `file` (JPG/PNG/WEBP/GIF, ≤ 2 MB) → 200 user · 415 tipo inválido |
 | GET | /api/v1/modalities | Sí | Listar modalidades | — → 200 list |
 | POST | /api/v1/rooms | Sí | Crear sala | modality_id → 201 room |
 | GET | /api/v1/rooms/{code} | Sí | Consultar sala | — → 200 room |
@@ -1027,6 +1035,8 @@ No expone contratos front-back: su superficie es interna (almacén PostgreSQL, D
 | POST | /api/v1/rooms/{code}/start | Sí | Iniciar partida (creador) | — → 200 {match_id} |
 | DELETE | /api/v1/rooms/{code} | Sí | Cancelar sala (creador) | — → 204 |
 | GET | /api/v1/matches/{match_id} | Sí | Estado de partida | — → 200 match |
+| GET | /api/v1/matches/by-room/{code} | Sí | Partida asociada a una sala (respaldo de entrada, RV-002) | — → 200 match |
+| GET | /api/v1/matches/{match_id}/turns/{turn_id} | Sí | Detalle de turno | — → 200 turn |
 | POST | /api/v1/matches/{match_id}/phrase | Sí | Registrar frase y secreto (autor) | phrase, secret_score → 200 |
 | POST | /api/v1/matches/{match_id}/votes | Sí | Emitir voto (votante) | score → 200 |
 | GET | /api/v1/matches/{match_id}/scoreboard | Sí | Consultar marcador | — → 200 scores |

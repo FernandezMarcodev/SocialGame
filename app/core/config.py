@@ -26,6 +26,9 @@ class Settings(BaseSettings):
     author_timeout_seconds: int = 60
     voting_timeout_seconds: int = 30
 
+    upload_dir: str = "uploads"
+    max_avatar_bytes: int = 2_000_000
+
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
 

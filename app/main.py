@@ -1,7 +1,10 @@
 """Punto de entrada de la API del juego "Es un 10 pero…"."""
 
+import os
+
 from fastapi import APIRouter, FastAPI
 from fastapi.exceptions import RequestValidationError
+from fastapi.staticfiles import StaticFiles
 
 from app.api.errors import (
     ApiError,
@@ -62,7 +65,12 @@ def create_app(
         verifications=verification_store,
         emails=email_provider,
     )
-    users_service = UsersService(users=user_store, auth_service=auth_service)
+    users_service = UsersService(
+        users=user_store,
+        auth_service=auth_service,
+        upload_dir=settings.upload_dir,
+        max_avatar_bytes=settings.max_avatar_bytes,
+    )
     match_service = MatchService(matches=match_store, rooms=room_store)
     scoring_service = ScoringService(matches=match_service)
     turn_service = TurnService(
@@ -90,6 +98,10 @@ def create_app(
     app.add_exception_handler(RequestValidationError, validation_error_handler)
     if not settings.debug:
         app.add_exception_handler(Exception, unhandled_error_handler)
+
+    # Avatares subidos por los usuarios (RF-USR-007).
+    os.makedirs(settings.upload_dir, exist_ok=True)
+    app.mount("/uploads", StaticFiles(directory=settings.upload_dir), name="uploads")
 
     api = APIRouter(prefix="/api/v1")
     api.include_router(auth.router)
