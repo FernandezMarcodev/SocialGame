@@ -1,0 +1,17 @@
+{
+  "name": "es-un-10-pero-frontend",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "description": "Frontend web del juego \"Es un 10 pero…\" — SPA con estética de videojuego (Material + Apple)",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "test:e2e": "node e2e.mjs"
+  },
+  "devDependencies": {
+    "playwright": "^1.62.1",
+    "vite": "^5.4.11"
+  }
+}

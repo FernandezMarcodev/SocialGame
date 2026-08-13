@@ -56,6 +56,13 @@ class MatchService:
             raise ApiError(404, "MATCH_NOT_FOUND", "La partida no existe.")
         return match
 
+    def get_match_by_room(self, room_code: str) -> Match:
+        """Devuelve la partida asociada a una sala mediante su código (RF-SAL-005)."""
+        match = self._matches.get_by_room(room_code)
+        if match is None:
+            raise ApiError(404, "MATCH_NOT_FOUND", "La partida no existe.")
+        return match
+
     # ------------------------------------------------------------------ #
     # Ciclo de vida
     # ------------------------------------------------------------------ #

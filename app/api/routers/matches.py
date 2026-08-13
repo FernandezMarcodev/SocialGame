@@ -10,6 +10,18 @@ from app.services.turn_service import TurnService
 router = APIRouter(prefix="/matches", tags=["matches"])
 
 
+@router.get("/by-room/{code}", response_model=MatchOut)
+def get_match_by_room(
+    code: str,
+    user=Depends(get_current_user),
+    matches: MatchService = Depends(get_matches_service),
+    turns: TurnService = Depends(get_turns_service),
+) -> MatchOut:
+    match = matches.get_match_by_room(code)
+    turns.settle_expired(match.match_id)
+    return matches.serialize(match)
+
+
 @router.get("/{match_id}", response_model=MatchOut)
 def get_match(
     match_id: str,

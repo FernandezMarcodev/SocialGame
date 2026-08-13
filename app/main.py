@@ -10,10 +10,12 @@ from app.api.errors import (
     validation_error_handler,
 )
 from app.api.routers import auth, matches, modalities, rooms, scoring, turns, users
+from app.api.ws import router as realtime_router
 from app.core.config import Settings, get_settings
 from app.email.provider import ConsoleEmailProvider
 from app.services.auth_service import AuthService
 from app.services.match_service import MatchService
+from app.services.realtime_service import ConnectionManager, EventBus, RealtimeService
 from app.services.room_service import RoomService
 from app.services.scoring_service import ScoringService
 from app.services.turn_service import TurnService
@@ -47,6 +49,12 @@ def create_app(
     match_store = MemoryMatchStore()
     email_provider = ConsoleEmailProvider(outbox)
 
+    event_bus = EventBus()
+    connection_manager = ConnectionManager()
+    realtime_service = RealtimeService(
+        bus=event_bus, manager=connection_manager, rooms=room_store
+    )
+
     auth_service = AuthService(
         settings=settings,
         users=user_store,
@@ -74,6 +82,9 @@ def create_app(
     app.state.turns_service = turn_service
     app.state.scoring_service = scoring_service
     app.state.email_provider = email_provider
+    app.state.event_bus = event_bus
+    app.state.connection_manager = connection_manager
+    app.state.realtime_service = realtime_service
 
     app.add_exception_handler(ApiError, api_error_handler)
     app.add_exception_handler(RequestValidationError, validation_error_handler)
@@ -88,6 +99,7 @@ def create_app(
     api.include_router(matches.router)
     api.include_router(turns.router)
     api.include_router(scoring.router)
+    api.include_router(realtime_router)
     app.include_router(api)
 
     @app.get("/")
