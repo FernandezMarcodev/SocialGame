@@ -16,6 +16,9 @@ let tickTimer = null;
 let progress = null;
 let pollTimer = null;
 let finishTimer = null;
+let lastRenderKey = null;
+let draft = '';
+let draftTurn = null;
 
 export function match(v, { seg }) {
   view = v;
@@ -27,6 +30,7 @@ async function load(id) {
   try {
     const m = await api.getMatch(id);
     M = normalizeMatch(m, id);
+    lastRenderKey = null;
     store.match = M;
     render();
     fetchModality();
@@ -162,6 +166,27 @@ async function showFinish() {
   render();
 }
 
+function renderKey() {
+  const r = M.result || {};
+  return JSON.stringify([
+    M.turn_id,
+    M.phase,
+    M.author_id,
+    M.votes_count,
+    M._phraseSent,
+    M._iVoted,
+    M.matchFinished,
+    M.winner,
+    M.tie,
+    M.tie_players,
+    M._resultUntil,
+    r.secret_score,
+    (r.votes || []).map((v) => `${v.voter}:${v.value}`),
+    r.points,
+    r.skipped,
+  ]);
+}
+
 async function applyMatch(m, turn) {
   const now = Date.now();
 
@@ -222,6 +247,11 @@ async function applyMatch(m, turn) {
   }
 
   updateDerived(m);
+  // Si nada relevante cambió (p. ej. durante la escritura del autor), no se
+  // reconstruye el DOM: el input de la frase y el contador siguen vivos.
+  const key = renderKey();
+  if (key === lastRenderKey) return;
+  lastRenderKey = key;
   render();
 }
 
@@ -410,6 +440,11 @@ function authorForm(me) {
     maxlength: '80',
     autofocus: true,
   });
+  input.value = M.turn_id === draftTurn ? draft : '';
+  input.addEventListener('input', () => {
+    draft = input.value;
+    draftTurn = M.turn_id;
+  });
   const base = String(M.modality?.template || 'Es un 10 pero…').replace(/…\s*$/, '').trim();
   const selector = scoreSelector({});
   let selected = null;
@@ -433,6 +468,8 @@ function authorForm(me) {
       .then(() => {
         M._phraseSent = true;
         M.secret = selected;
+        draft = '';
+        draftTurn = null;
         render();
       })
       .catch((err) => {

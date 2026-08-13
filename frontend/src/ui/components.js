@@ -4,6 +4,18 @@ import { avatarHue } from '../store.js';
 
 // --- Avatar automático (RN-005): inicial sobre gradiente por hash del id. ---
 export function avatar(user, size = 44, { crown = false } = {}) {
+  const url = user?.profile_image_url;
+  if (url && !url.startsWith('/avatars/')) {
+    const style = {
+      width: `${size}px`,
+      height: `${size}px`,
+      fontSize: `${Math.round(size * 0.44)}px`,
+    };
+    return h('div', { class: 'avatar avatar--img', style, title: user?.username },
+      h('img', { class: 'avatar-img', src: url, alt: user?.username || '' }),
+      crown ? h('span', { class: 'avatar-crown', text: '♛' }) : null
+    );
+  }
   const initial = String(user?.username || '?').charAt(0).toUpperCase();
   const hue = avatarHue(user?.id || user?.username || '?');
   const style = {

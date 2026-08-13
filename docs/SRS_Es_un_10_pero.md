@@ -2646,6 +2646,199 @@ Las salas y partidas deberán eliminarse automáticamente una vez finalizado su 
 
 Esta sección reúne la información complementaria que da soporte a la comprensión del presente documento. El detalle correspondiente se encuentra desarrollado en el Apéndice A – Glosario de Términos y Acrónimos, donde se listan las definiciones de los términos técnicos y de dominio, así como los acrónimos utilizados a lo largo de la especificación (RF, RN, RNF, entre otros).
 
+# 7. Trazabilidad de Requisitos
+
+La trazabilidad garantiza que cada requisito del SRS tiene una implementación concreta y verificable en el sistema, conforme a RNF-EST-002. Las tablas siguientes mapean cada requisito (RF, RN y RNF) hacia su implementación, su verificación automatizada y su estado actual.
+
+Convenciones de estado: **Implementado** (verificado por pruebas automatizadas), **Parcial** (cubierto en parte; se indica la divergencia), **Pendiente** (no implementado), **No aplica** y **Modificado/Volátil** (referencia a la sección 7.5).
+
+## 7.1 Requisitos funcionales (RF)
+
+### Módulo de usuarios
+
+| Requisito | Implementación | Verificación | Estado |
+| --- | --- | --- | --- |
+| RF-USR-001 — Registrar usuario | `POST /api/v1/auth/register` · `app/services/auth_service.py` | `tests/test_auth.py` | Implementado |
+| RF-USR-002 — Validar unicidad del nombre de usuario | `AuthService`/`UsersService` (unicidad) | `tests/test_auth.py`, `tests/test_users.py` | Implementado |
+| RF-USR-003 — Validar unicidad del correo electrónico | `AuthService`/`UsersService` (unicidad) | `tests/test_auth.py`, `tests/test_users.py` | Implementado |
+| RF-USR-004 — Validar información del registro | `app/api/schemas.py` · `app/core/security.py` | `tests/test_auth.py` | Implementado |
+| RF-USR-005 — Generar imagen de perfil predeterminada | `app/domain/avatars.py` (inicial + gradiente en el cliente) | `tests/test_auth.py` | Implementado (ampliado por RV-001) |
+| RF-USR-006 — Consultar perfil de usuario | `GET /api/v1/users/me` · `app/api/routers/users.py` | `tests/test_users.py` | Implementado |
+| RF-USR-007 — Modificar información del perfil | `PATCH /api/v1/users/me` · `app/services/users_service.py` | `tests/test_users.py` | Implementado (extendido: foto de perfil, RV-001) |
+
+### Módulo de autenticación
+
+| Requisito | Implementación | Verificación | Estado |
+| --- | --- | --- | --- |
+| RF-AUT-001 — Verificar correo electrónico | `POST /api/v1/auth/verify-email` · `AuthService.verify_email` | `tests/test_auth.py` | Implementado |
+| RF-AUT-002 — Reenviar correo de verificación | `POST /api/v1/auth/resend-verification` | `tests/test_auth.py` | Implementado |
+| RF-AUT-003 — Iniciar sesión | `POST /api/v1/auth/login` | `tests/test_auth.py` | Implementado |
+| RF-AUT-004 — Validar credenciales | `AuthService` (verificación de contraseña) | `tests/test_auth.py` | Implementado |
+| RF-AUT-005 — Controlar intentos fallidos | `AuthService` (`failed_attempts`, `blocked_until`) | `tests/test_auth.py` | Implementado |
+| RF-AUT-006 — Cerrar sesión | `POST /api/v1/auth/logout` · revocación de sesión | `tests/test_auth.py` | Implementado |
+| RF-AUT-007 — Cambiar contraseña | `POST /api/v1/auth/change-password` | `tests/test_auth.py` | Implementado |
+| RF-AUT-008 — Solicitar recuperación de contraseña | `POST /api/v1/auth/forgot-password` | `tests/test_auth.py` | Implementado |
+| RF-AUT-009 — Restablecer contraseña | `POST /api/v1/auth/reset-password` | `tests/test_auth.py` | Implementado |
+
+### Módulo de salas
+
+| Requisito | Implementación | Verificación | Estado |
+| --- | --- | --- | --- |
+| RF-SAL-001 — Crear sala | `POST /api/v1/rooms` · `app/services/room_service.py` | `tests/test_rooms.py` | Implementado |
+| RF-SAL-002 — Unirse a una sala | `POST /api/v1/rooms/{code}/join` · evento WS `room.updated` | `tests/test_rooms.py`, `tests/test_realtime.py` | Implementado (entrada solo por código, RV-002) |
+| RF-SAL-003 — Consultar información de una sala | `GET /api/v1/rooms/{code}` | `tests/test_rooms.py` | Implementado |
+| RF-SAL-004 — Abandonar una sala | `POST /api/v1/rooms/{code}/leave` | `tests/test_rooms.py` | Implementado |
+| RF-SAL-005 — Iniciar una partida | `POST /api/v1/rooms/{code}/start` · evento WS `match.started` · `GET /api/v1/matches/by-room/{code}` | `tests/test_rooms.py`, `tests/test_realtime.py` | Implementado |
+| RF-SAL-006 — Cancelar una sala | `DELETE /api/v1/rooms/{code}` · evento WS `room.cancelled` | `tests/test_rooms.py`, `tests/test_realtime.py` | Implementado |
+| RF-SAL-007 — Eliminar automáticamente una sala | Ciclo de vida de `RoomService` (fin de partida/abandono del creador) | `tests/test_rooms.py` | Implementado |
+| RF-SAL-008 — Validar condiciones de ingreso | `RoomService.join_room` (sala llena, ya iniciada, jugador en otra sala) | `tests/test_rooms.py` | Implementado |
+
+### Módulo de partidas
+
+| Requisito | Implementación | Verificación | Estado |
+| --- | --- | --- | --- |
+| RF-PAR-001 — Crear partida | `MatchService.create_match` (desde `start_match`) | `tests/test_matches.py` | Implementado |
+| RF-PAR-002 — Inicializar partida | `MatchService` (estado inicial, puntajes en cero) | `tests/test_matches.py` | Implementado |
+| RF-PAR-003 — Generar orden de participación | `turn_order` (orden aleatorio de la ronda) | `tests/test_matches.py` | Implementado |
+| RF-PAR-004 — Administrar el estado de la partida | máquina de estados `Match` (`initialized → active → finished`) | `tests/test_matches.py` | Implementado |
+| RF-PAR-005 — Controlar el avance de la ronda | `TurnService` (avance de `turn_index`) | `tests/test_turns.py` | Implementado |
+| RF-PAR-006 — Finalizar la partida | `MatchService` (`state = finished` al completar la ronda) | `tests/test_matches.py` | Implementado |
+| RF-PAR-007 — Determinar el resultado final | `GET /api/v1/matches/{id}/result` · `ScoringService` | `tests/test_scoring.py` | Implementado |
+
+### Módulo de turnos
+
+| Requisito | Implementación | Verificación | Estado |
+| --- | --- | --- | --- |
+| RF-TUR-001 — Iniciar turno | `TurnService.start_turn` (máquina `active → voting → finished \| discarded`) | `tests/test_turns.py` | Implementado |
+| RF-TUR-002 — Notificar inicio de turno | Consulta REST desde el frontend (polling; pendiente WS, ver RV-010) | `tests/test_turns.py` | Parcial |
+| RF-TUR-003 — Registrar frase y puntaje secreto | `POST /api/v1/matches/{id}/phrase` · `TurnService.submit_phrase` | `tests/test_turns.py` | Implementado |
+| RF-TUR-004 — Validar la información ingresada por el autor | `schemas` + reglas de negocio (RN-012, RN-015) | `tests/test_turns.py` | Implementado |
+| RF-TUR-005 — Controlar el tiempo del autor | `TurnService.settle_expired` (timeout por `settings`) | `tests/test_turns.py` | Implementado |
+| RF-TUR-006 — Iniciar la etapa de votación | transición `active → voting` | `tests/test_turns.py` | Implementado |
+| RF-TUR-007 — Registrar voto | `POST /api/v1/matches/{id}/votes` · `TurnService.submit_vote` | `tests/test_turns.py` | Implementado |
+| RF-TUR-008 — Controlar el tiempo de votación | `TurnService.settle_expired` | `tests/test_turns.py` | Implementado |
+| RF-TUR-009 — Finalizar la votación | conteo de votos y cierre del turno | `tests/test_turns.py` | Implementado |
+| RF-TUR-010 — Publicar el resultado del turno | etapa `result` en el frontend (`turn.result` por polling) | `tests/test_turns.py` | Implementado |
+| RF-TUR-011 — Seleccionar el siguiente jugador | `turn_index` sobre `turn_order` | `tests/test_turns.py` | Implementado |
+
+### Módulo de puntuación
+
+| Requisito | Implementación | Verificación | Estado |
+| --- | --- | --- | --- |
+| RF-PUN-001 — Calcular puntos del turno | `app/services/scoring_service.py` (solo autor, acierto exacto) | `tests/test_scoring.py` | Implementado |
+| RF-PUN-002 — Actualizar marcador de jugadores | `Match.scores` (recalculo por turno) | `tests/test_scoring.py` | Implementado |
+| RF-PUN-003 — Consultar marcador actual | `GET /api/v1/matches/{id}/scoreboard` | `tests/test_scoring.py` | Implementado |
+| RF-PUN-004 — Generar resultado final de puntuación | `GET /api/v1/matches/{id}/result` | `tests/test_scoring.py` | Implementado |
+
+### Módulo de comunicación en tiempo real
+
+| Requisito | Implementación | Verificación | Estado |
+| --- | --- | --- | --- |
+| RF-COM-001 — Establecer conexión en tiempo real | `app/api/ws.py` (gateway `/api/v1/ws`, token por query) | `tests/test_realtime.py` | Implementado |
+| RF-COM-002 — Gestionar conexión de jugadores | `ConnectionManager` (`app/services/realtime_service.py`) | `tests/test_realtime.py` | Implementado |
+| RF-COM-003 — Notificar creación de sala | Respuesta HTTP `201` de creación (no hay otros jugadores que notificar) | `tests/test_rooms.py` | No aplica |
+| RF-COM-004 — Notificar cambios en sala | evento WS `room.updated` (ingresos/abandonos) | `tests/test_realtime.py` | Implementado |
+| RF-COM-005 — Notificar inicio de partida | evento WS `match.started` (`match_id`, `order`, `first_author`) | `tests/test_realtime.py` | Implementado |
+| RF-COM-006 — Transmitir eventos del turno | — (el frontend consulta por polling REST) | — | Pendiente (RV-010) |
+| RF-COM-007 — Actualizar estado del juego | — (ídem) | — | Pendiente (RV-010) |
+| RF-COM-008 — Notificar actualización de puntuación | — (ídem) | — | Pendiente (RV-010) |
+| RF-COM-009 — Notificar finalización de partida | — (ídem) | — | Pendiente (RV-010) |
+| RF-COM-010 — Gestionar desconexión definitiva de jugadores | limpieza de conexión en `ConnectionManager.disconnect` | `tests/test_realtime.py` | Parcial (no emite `player.disconnected`) |
+
+### Módulo de persistencia
+
+| Requisito | Implementación | Verificación | Estado |
+| --- | --- | --- | --- |
+| RF-PER-001 — Registrar información de usuario | stores en memoria (`app/stores/memory.py`) | `tests/` | Pendiente (sustituido por stores en memoria; sin base de datos) |
+| RF-PER-002 — Consultar información persistente | ídem | `tests/` | Pendiente |
+| RF-PER-003 — Actualizar información persistente | ídem | `tests/` | Pendiente |
+| RF-PER-004 — Administrar eliminación de información temporal | ídem | `tests/` | Pendiente |
+| RF-PER-005 — Almacenar frases utilizadas | `MemoryTurnStore` | `tests/` | Pendiente |
+
+## 7.2 Reglas de negocio (RN)
+
+| Regla | Implementación | Estado |
+| --- | --- | --- |
+| RN-001 · RN-002 (unicidad de usuario y correo) | `AuthService`/`UsersService` | Implementado |
+| RN-003 (autenticación obligatoria) | `app/api/deps.py` (`get_current_user`) | Implementado |
+| RN-004 (una sala por usuario) | `RoomService` (`PLAYER_ALREADY_IN_SESSION`) | Implementado |
+| RN-005 (imagen automática, sin carga personalizada) | `app/domain/avatars.py` | **Modificado por RV-001** (se permite foto personalizada) |
+| RN-006 (salas privadas por código) | `RoomStore` (código de 6 caracteres) | Implementado |
+| RN-007 (solo el creador inicia) | `RoomService.start_match` | Implementado |
+| RN-008 (mín. 2, máx. 6 jugadores) | `RoomService` | Implementado |
+| RN-009 (sin ingreso tras iniciar) | `RoomService.join_room` | Implementado |
+| RN-010 (el creador cancela antes de iniciar) | `RoomService.cancel_room` | Implementado |
+| RN-011 (modalidad fija) | entidad `Room.modality_id` | Implementado |
+| RN-012 (frase + puntaje secreto 1–10) | `TurnService.submit_phrase` | Implementado |
+| RN-013 (secreto oculto hasta la votación) | modelo `Turn.secret_score` | Implementado |
+| RN-014 (un voto por turno) | `TurnService.submit_vote` | Implementado |
+| RN-015 (votos enteros 1–10) | validación en `schemas` | Implementado |
+| RN-016 (votos ocultos) | publicación solo en el resultado | Implementado |
+| RN-017 (abandono de partida iniciada) | no se permite abandonar una partida iniciada (`RoomService.leave_room` lo bloquea) | **Divergencia RV-008** |
+| RN-018 (puntos solo al autor) | `ScoringService` | Implementado |
+| RN-019 (un punto por acierto exacto) | `ScoringService` | Implementado |
+| RN-020 (mostrar secreto, votos y acumulado) | etapa `result` del frontend | Implementado |
+| RN-021 (fin al completar la ronda) | `MatchService` | Implementado |
+| RN-022 (ronda = n.º de jugadores; turnos descartados) | `TurnService` (descartes por timeout; el abandono está bloqueado) | Parcial (RV-008) |
+| RN-023 (empate) | `ScoringService` / `GET result` | Implementado |
+| RN-024 (eliminar sala al finalizar) | ciclo de vida de la sala | Implementado |
+| RN-025 (ronda única, un autor por turno) | `Match.turn_order` / `TurnService` | Implementado |
+| RN-026 (solo modalidades configuradas) | catálogo `app/services/catalog.py` | Implementado |
+| RN-027 (código único mientras activa) | `RoomStore` (generación y unicidad) | Implementado |
+
+## 7.3 Requisitos no funcionales (RNF)
+
+| Requisito | Implementación | Verificación | Estado |
+| --- | --- | --- | --- |
+| RNF-EFI-001 — Tiempo de respuesta de la API | handlers asincrónicos FastAPI, respuestas ligeras | `tests/` (contratos HTTP) | Implementado |
+| RNF-EFI-002 — Actualización de eventos en tiempo real | canal WebSocket `/api/v1/ws` (sin polling para salas) | `tests/test_realtime.py` | Implementado (turnos aún por polling, RV-010) |
+| RNF-EFI-003 — Múltiples partidas simultáneas | stores por identificador (`MemoryMatchStore`, etc.) | `tests/` | Implementado |
+| RNF-SEG-001 — Protección de contraseñas | `argon2-cffi` (`app/core/security.py`) | `tests/test_auth.py` | Implementado |
+| RNF-SEG-002 — Autenticación de usuarios | tokens opacos de sesión en servidor | `tests/test_auth.py` | Implementado |
+| RNF-SEG-003 — Validación de información recibida | esquemas Pydantic (`app/api/schemas.py`) | `tests/` | Implementado |
+| RNF-SEG-004 — Protección de información sensible | sin volcado de secretos en respuestas ni logs | revisión de código | Implementado |
+| RNF-FIA-001 — Manejo controlado de errores | `ApiError` + handlers (`app/api/errors.py`, formato B.5) | `tests/` | Implementado |
+| RNF-FIA-002 — Consistencia del estado del juego | máquinas de estado de `Room`, `Match` y `Turn` | `tests/test_matches.py`, `tests/test_turns.py` | Implementado |
+| RNF-FIA-003 — Integridad de información persistente | — (persistencia en memoria) | — | Pendiente |
+| RNF-USA-001 — Retroalimentación de operaciones | `toast` y estados en el frontend | e2e / manual | Implementado |
+| RNF-USA-002 — Claridad del estado de juego | etapas y temporizadores en el frontend | e2e / manual | Implementado |
+| RNF-MAN-001 — Separación de responsabilidades | capas `api/routers` → `services` → `stores`/`domain` | estructura del código | Implementado |
+| RNF-MAN-002 — Bajo acoplamiento entre componentes | interfaces en `app/stores/base.py` (inversión de dependencias) | estructura del código | Implementado |
+| RNF-MAN-003 — Pruebas automatizadas | suite `pytest` (105 pruebas) | `python3 -m pytest` | Implementado |
+| RNF-POR-001 — Ejecución mediante Docker | `Dockerfile`, `docker-compose.yml`, `frontend/Dockerfile` | smoke test en contenedores | Implementado |
+| RNF-POR-002 — Configuración mediante variables de entorno | `app/core/config.py` (pydantic-settings) | revisión | Implementado |
+| RNF-EST-001 — Documentación de API | catálogo de endpoints (DDD B.3) y este SRS | revisión | Implementado |
+| RNF-EST-002 — Control de versiones | git con ramas `feature/*` → `develop` → `main` | historial del repo | Implementado |
+| RNF-IMP-001 — Arquitectura basada en servicios | `app/services/*.py` (servicios de aplicación) | estructura del código | Implementado |
+| RNF-INT-001 — Comunicación mediante JSON | esquemas y contratos REST/WS | `tests/` | Implementado |
+| RNF-INT-002 — Uso de protocolos estándar | HTTP/JSON y WebSocket | `tests/` | Implementado |
+| RNF-DAT-001 — Minimización de información almacenada | entidades con datos mínimos | revisión | Implementado |
+| RNF-DAT-002 — Eliminación de información temporal | expiración y revocación de sesiones/verificaciones | `tests/test_auth.py` | Implementado |
+
+## 7.4 Metodología y alcance del análisis
+
+El análisis de trazabilidad se realizó contra el código real de la rama `develop` del repositorio (estructura `app/api/routers/*`, `app/services/*`, `app/stores/*`, `app/api/ws.py`) y la suite de pruebas automatizadas. Los requisitos de la sección 7.5 corresponden a cambios y requerimientos que surgieron durante el desarrollo y se incorporan a esta especificación como anexo dinámico.
+
+## 7.5 Requisitos Volátiles y Emergentes (RV)
+
+Esta sección registra los requisitos que cambiaron respecto del documento original o que surgieron de forma emergente durante el desarrollo, junto con su decisión y estado. Es un anexo vivo: cada nuevo cambio de preferencias del cliente o hallazgo de implementación se documenta aquí antes de reflejarse en el cuerpo de la especificación.
+
+Tipo de cambio: **Cambio** (modifica un requisito o regla existente) · **Emergente** (requisito nuevo surgido durante el desarrollo) · **Divergencia** (la implementación difiere de lo especificado).
+
+| ID | Tipo | Requisito afectado | Descripción | Decisión | Estado |
+| --- | --- | --- | --- | --- | --- |
+| RV-001 | Cambio | RN-005, RF-USR-007 | El cliente pidió poder cambiar la foto de perfil con un archivo propio. Se habilita la carga de imagen (JPG/PNG/WEBP/GIF, máx. 2 MB) en `PUT /api/v1/users/me/avatar`, almacenada en `/uploads` (volumen Docker). La RN-005 deja de aplicarse para quienes cargan su foto. | Se implementa la carga de archivo; el avatar generado se conserva como predeterminado. | Implementado |
+| RV-002 | Cambio | RF-SAL-002, RF-SAL-005 | La entrada a la partida se hace **solo con el código de sala**, sin enlaces compartibles ni mecanismo de pegado de enlace. Para quien abre la sala cuando la partida ya comenzó, se agrega `GET /api/v1/matches/by-room/{code}` (endpoint que no figuraba en el B.1 original). | Se elimina la compartición por enlace; el código es la única vía de ingreso; el endpoint by-room actúa como respaldo. | Implementado |
+| RV-003 | Emergente | RN-012, RN-015, UI | Preferencia del cliente: el selector de puntaje 1–10 se presenta como **cartas de baraja inglesa** (♠♥♣♦, rojas/negras, rango y palo en las esquinas) en lugar de una lista numérica. | Se adopta la baraja inglesa como interfaz del selector y del revelado del puntaje secreto. | Implementado |
+| RV-004 | Emergente | UI / tema | Preferencia del cliente: **tema claro verde pastel** para toda la interfaz. | Se adopta el tema claro verde pastel. | Implementado |
+| RV-005 | Emergente | Alcance | Se desarrolla únicamente un **cliente web SPA** (Vite + JS), quedando fuera de alcance actual las apps móviles y de escritorio que el DDD contempla como clientes posibles. | Se prioriza el cliente web; los contratos REST/WS permiten clientes adicionales. | Implementado |
+| RV-006 | Emergente | RNF-POR-001 | Despliegue local con **Docker Compose**: contenedores `api` (uvicorn) y `frontend` (nginx con soporte WebSocket), volumen `./uploads` para las fotos de perfil. | Se adopta el despliegue por Compose con proxy nginx en `:5173`. | Implementado |
+| RV-007 | Cambio | RN-026, catálogo | Se incorpora una segunda modalidad al catálogo: **“Es un 1 pero…”**, junto a la modalidad original “Es un 10 pero…”. | Se amplía el catálogo de modalidades configuradas. | Implementado |
+| RV-008 | Divergencia | RN-017, RN-022 | El sistema **bloquea el abandono de una partida ya iniciada** (`RoomService.leave_room` lanza `ROOM_NOT_AVAILABLE`), mientras la RN-017 prevé que el jugador pueda irse perdiendo su participación. | Se mantiene el bloqueo por decisión de producto; el descarte de turnos (RN-022) aplica solo a autores que expiran por timeout. | Pendiente de confirmación |
+| RV-009 | Divergencia | B.2.7 (DDD) | La envoltura WebSocket implementada es `{event, data}` y la especificada en el DDD era `{type, timestamp, data}`. El DDD se actualizó a la forma implementada (ver DDD §B.2.7). | Se documenta la envoltura real en el DDD. | Documentado |
+| RV-010 | Divergencia | RF-COM-006…009, RF-TUR-002 | Los eventos de turno, marcador y finalización de partida **no se emiten por WebSocket**: el frontend los obtiene por polling REST. El canal WS cubre por ahora el ciclo de sala (`room.updated`, `room.cancelled`, `match.started`). | Se mantiene el polling como mecanismo transitorio; candidato a migrar a WS completo. | Pendiente |
+| RV-011 | Emergente | RF-USR-007 / UX | Corrección de usabilidad: el frontend **preserva el borrador de la frase** del autor mientras se re-sincroniza con el backend (antes, cada poll reconstruía el formulario y borraba lo escrito). | Se evita re-renderizar el formulario cuando nada relevante cambió. | Implementado |
+
 # Apéndice A – Glosario de Términos y Acrónimos
 
 A continuación, se presenta el glosario de términos técnicos, de dominio y acrónimos utilizados a lo largo del presente documento, ordenados alfabéticamente.

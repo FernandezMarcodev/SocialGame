@@ -4,6 +4,8 @@ services:
     container_name: es10p-api
     ports:
       - "8000:8000"
+    volumes:
+      - ./uploads:/app/uploads
     restart: unless-stopped
 
   frontend:

@@ -28,3 +28,5 @@ htmlcov/
 # Documentos fuente (.docx) — la fuente de verdad es docs/*.md
 *.docx
 *:Zone.Identifier
+# Avatares subidos (runtime)
+uploads/
