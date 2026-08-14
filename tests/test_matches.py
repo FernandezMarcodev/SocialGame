@@ -71,8 +71,8 @@ class TestMatchHttp:
         assert data["room_code"] == room_code
         assert data["state"] == "in_progress"
         assert len(data["players"]) == 2
-        assert len(data["turn_order"]) == 2
-        assert set(data["turn_order"]) == {me["id"], other["id"]}
+        assert len(data["turn_order"]) == 6  # 2 jugadores x 3 rondas
+        assert sorted(data["turn_order"]) == sorted([me["id"], other["id"]] * 3)
         assert isinstance(data["current_turn"], str) and data["current_turn"].startswith("t-")
         assert data["scores"] == {me["id"]: 0, other["id"]: 0}
 
@@ -115,8 +115,8 @@ class TestMatchService:
         assert match.scores == {"u1": 0, "u2": 0, "u3": 0}
         match = service.initialize_match(match.match_id)
         assert match.state == "initialized"
-        assert len(match.turn_order) == 3
-        assert set(match.turn_order) == {"u1", "u2", "u3"}
+        assert len(match.turn_order) == 9  # 3 jugadores x 3 rondas
+        assert sorted(match.turn_order) == sorted(["u1", "u2", "u3"] * 3)
 
     def test_start_then_advance_then_finish(self):
         r = room(["u1", "u2"])
@@ -128,9 +128,10 @@ class TestMatchService:
         service.advance_round(match.match_id)
         assert match.state == "in_progress"
         assert match.turn_index == 1
-        match = service.advance_round(match.match_id)
-        assert match.state == "finished"
-        assert match.turn_index == 2
+        # La partida dura 3 rondas x 2 jugadores = 6 turnos.
+        while match.state != "finished":
+            match = service.advance_round(match.match_id)
+        assert match.turn_index == 6
 
     def test_finish_removes_room(self):
         r = room(["u1", "u2"])

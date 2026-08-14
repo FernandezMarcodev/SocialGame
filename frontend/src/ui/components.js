@@ -44,6 +44,8 @@ export function scoreSelector({ selected = null, onSelect, disabled = false } = 
         'aria-label': `Puntaje ${v}`,
         onclick: () => {
           if (disabled) return;
+          buttons.forEach((b) => b.classList.remove('is-selected'));
+          btn.classList.add('is-selected');
           onSelect?.(v);
         },
       },

@@ -1772,8 +1772,10 @@ body::after {
   gap: 10px;
   padding: 14px 18px;
   border-radius: 16px;
-  background: rgba(30, 58, 44, 0.95);
-  border: 1px solid rgba(31, 90, 62, 0.2);
+  color: #ffffff;
+  background: rgba(30, 58, 44, 0.96);
+  border: 1px solid rgba(31, 90, 62, 0.35);
+  border-left: 4px solid var(--green);
   backdrop-filter: blur(14px);
   box-shadow: var(--shadow-md);
   font-size: 14px;
@@ -1782,6 +1784,9 @@ body::after {
   transform: translateY(14px) scale(0.97);
   transition: all 0.3s var(--ease-spring);
 }
+
+.toast--error { border-left-color: #d65f4f; background: rgba(58, 30, 32, 0.96); }
+.toast--info { border-left-color: var(--teal); background: rgba(24, 52, 50, 0.96); }
 
 .toast--show {
   opacity: 1;
@@ -1792,10 +1797,11 @@ body::after {
   font-weight: 800;
   width: 22px;
   text-align: center;
+  color: #ffffff;
 }
 
 .toast--success .toast-icon { color: var(--green); }
-.toast--error .toast-icon { color: #d65f4f; }
+.toast--error .toast-icon { color: #ef8a7d; }
 .toast--info .toast-icon { color: var(--teal); }
 
 /* ============================ Sheet / Modal ============================ */

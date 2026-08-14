@@ -65,6 +65,7 @@ function normalizeMatch(raw, id) {
     tie_players: [],
     matchFinished: false,
     turn_index: 0,
+    total_rounds: 3,
     total: 0,
     _iVoted: false,
     _phraseSent: false,
@@ -261,7 +262,8 @@ function updateDerived(m) {
   M.scores = m.scores ?? M.scores;
   M.state = m.state ?? M.state;
   M.room_code = m.room_code ?? M.room_code;
-  M.turn_index = Math.max(0, M.order.indexOf(M.author_id));
+  M.turn_index = m.turn_index ?? Math.max(0, M.order.indexOf(M.author_id));
+  M.total_rounds = m.total_rounds ?? 3;
   M.total = M.order.length;
 }
 
@@ -316,7 +318,7 @@ function render() {
         M.modality?.template ? h('span', { class: 'match-modality' }, M.modality.template) : null
       ),
       h('div', { class: 'match-top-right' },
-        h('span', { class: 'match-round' }, `Ronda · Turno ${Math.min(M.turn_index + 1, Math.max(1, M.total))} de ${M.total}`),
+        h('span', { class: 'match-round' }, roundLabel()),
         h('button', { class: 'btn btn--ghost btn--sm', type: 'button', text: 'Salir', onclick: leave })
       )
     ),
@@ -346,6 +348,14 @@ function playerName(id) {
 
 function playerById(id) {
   return M.players.find((p) => p.id === id);
+}
+
+function roundLabel() {
+  if (M.phase === 'finished') return 'Partida finalizada';
+  const numPlayers = Math.max(1, M.players.length);
+  const round = Math.min(M.total_rounds, Math.floor(M.turn_index / numPlayers) + 1);
+  const turnInRound = (M.turn_index % numPlayers) + 1;
+  return `Ronda ${round} de ${M.total_rounds} · Turno ${turnInRound} de ${numPlayers}`;
 }
 
 // ---- píldoras de progreso de ronda -------------------------------------------
@@ -446,17 +456,14 @@ function authorForm(me) {
     draftTurn = M.turn_id;
   });
   const base = String(M.modality?.template || 'Es un 10 pero…').replace(/…\s*$/, '').trim();
-  const selector = scoreSelector({});
   let selected = null;
-  selector.node.setAttribute('role', 'radiogroup');
-  selector.node.addEventListener('click', (e) => {
-    const btn = e.target.closest('.score-chip');
-    if (btn) {
-      selected = Number(btn.textContent);
-      selector.setValue(selected);
+  const selector = scoreSelector({
+    onSelect: (v) => {
+      selected = v;
       submitBtn.disabled = false;
-    }
+    },
   });
+  selector.node.setAttribute('role', 'radiogroup');
 
   const submitBtn = h('button', { class: 'btn btn--primary btn--lg btn--block', type: 'button', disabled: true, text: 'Enviar frase' });
   submitBtn.addEventListener('click', () => {
@@ -493,15 +500,12 @@ function authorForm(me) {
 }
 
 function votingForm(me) {
-  const selector = scoreSelector({});
   let selected = null;
-  selector.node.addEventListener('click', (e) => {
-    const btn = e.target.closest('.score-chip');
-    if (btn) {
-      selected = Number(btn.textContent);
-      selector.setValue(selected);
+  const selector = scoreSelector({
+    onSelect: (v) => {
+      selected = v;
       submitBtn.disabled = false;
-    }
+    },
   });
 
   const submitBtn = h('button', { class: 'btn btn--primary btn--lg btn--block', type: 'button', disabled: true, text: 'Enviar voto' });

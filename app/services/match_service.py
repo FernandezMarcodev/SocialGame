@@ -17,6 +17,7 @@ from app.stores.base import MatchStore, RoomStore
 
 _MATCH_ID_PREFIX = "m-"
 _MATCH_INITIAL_STATES = {"created", "initialized", "in_progress"}
+_TOTAL_ROUNDS = 3  # Toda partida dura exactamente 3 rondas (RN-002).
 
 
 def _new_match_id() -> str:
@@ -24,7 +25,12 @@ def _new_match_id() -> str:
 
 
 def _serialize_player(player: PlayerRef) -> PlayerOut:
-    return PlayerOut(id=player.id, username=player.username, joined_at=player.joined_at)
+    return PlayerOut(
+        id=player.id,
+        username=player.username,
+        joined_at=player.joined_at,
+        profile_image_url=player.profile_image_url,
+    )
 
 
 class MatchService:
@@ -48,6 +54,8 @@ class MatchService:
             current_turn=match.current_turn,
             scores=dict(match.scores),
             created_at=match.created_at,
+            turn_index=match.turn_index,
+            total_rounds=_TOTAL_ROUNDS,
         )
 
     def get_match(self, match_id: str) -> Match:
@@ -97,12 +105,21 @@ class MatchService:
         return match
 
     def initialize_match(self, match_id: str) -> Match:
-        """Inicializa la partida y genera el orden de participación (RF-PAR-002/003)."""
+        """Inicializa la partida y genera el orden de participación (RF-PAR-002/003).
+
+        El orden se genera para las ``_TOTAL_ROUNDS`` rondas: cada ronda es una
+        permutación independiente de los jugadores, de modo que toda partida
+        tiene exactamente 3 rondas (RN-002).
+        """
         match = self.get_match(match_id)
         if match.state != "created":
             raise ApiError(409, "MATCH_WRONG_STATE", "La partida no puede inicializarse.")
-        order = [p.id for p in match.players]
-        secrets.SystemRandom().shuffle(order)
+        base = [p.id for p in match.players]
+        order: list[str] = []
+        for _ in range(_TOTAL_ROUNDS):
+            round_order = list(base)
+            secrets.SystemRandom().shuffle(round_order)
+            order.extend(round_order)
         match.turn_order = order
         match.state = "initialized"
         return match

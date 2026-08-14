@@ -1,7 +1,7 @@
 // Registro de pantallas + shell (barra superior persistente).
 import { h, mount, clear } from '../ui/dom.js';
 import { avatar } from '../ui/components.js';
-import { isAuthed } from '../store.js';
+import { isAuthed, store } from '../store.js';
 import { navigate } from '../router.js';
 import { on } from '../events.js';
 

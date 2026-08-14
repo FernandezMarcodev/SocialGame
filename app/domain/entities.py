@@ -39,6 +39,7 @@ class PlayerRef:
     id: str
     username: str
     joined_at: int
+    profile_image_url: str = ""
 
 
 @dataclass

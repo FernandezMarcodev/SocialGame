@@ -4,13 +4,10 @@
 // Los errores de dominio ({error:{code,message}}) se propagan tal cual.
 
 import { ApiError } from './errors.js';
+import { store } from './store.js';
 
 function getToken() {
-  try {
-    return JSON.parse(localStorage.getItem('es10p.session') ?? 'null')?.token;
-  } catch {
-    return null;
-  }
+  return store.session?.token ?? null;
 }
 
 function headersFor(opts) {

@@ -84,6 +84,7 @@ class PlayerOut(BaseModel):
     id: str
     username: str
     joined_at: int
+    profile_image_url: str = ""
 
 
 class RoomOut(BaseModel):
@@ -110,6 +111,8 @@ class MatchOut(BaseModel):
     current_turn: str | None
     scores: dict[str, int]
     created_at: int
+    turn_index: int = 0
+    total_rounds: int = 3
 
 
 class PhraseIn(BaseModel):

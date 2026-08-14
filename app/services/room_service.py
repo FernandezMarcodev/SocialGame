@@ -41,11 +41,21 @@ class RoomService:
         self._now = now or utcnow_ms
 
     def _player_ref(self, user: User) -> PlayerRef:
-        return PlayerRef(id=user.id, username=user.username, joined_at=self._now())
+        return PlayerRef(
+            id=user.id,
+            username=user.username,
+            joined_at=self._now(),
+            profile_image_url=user.profile_image_url,
+        )
 
     @staticmethod
     def _serialize_player(player: PlayerRef) -> PlayerOut:
-        return PlayerOut(id=player.id, username=player.username, joined_at=player.joined_at)
+        return PlayerOut(
+            id=player.id,
+            username=player.username,
+            joined_at=player.joined_at,
+            profile_image_url=player.profile_image_url,
+        )
 
     def serialize(self, room: Room) -> RoomOut:
         modality = get_modality(room.modality_id)
