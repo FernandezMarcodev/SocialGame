@@ -1,11 +1,35 @@
 services:
-  api:
+  db:
+    image: postgres:16-alpine
+    container_name: es10p-db
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-es10p}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-es10p}
+      POSTGRES_DB: ${POSTGRES_DB:-es10p}
+    volumes:
+      - es10p_db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-es10p} -d ${POSTGRES_DB:-es10p}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
+  es10p-api:
     build: .
     container_name: es10p-api
+    env_file: .env
+    environment:
+      # Si DATABASE_URL está en el .env (BD gestionada externa), se usa tal cual.
+      # Si no, se arma con las variables POSTGRES_* para el contenedor local.
+      DATABASE_URL: ${DATABASE_URL:-postgresql://${POSTGRES_USER:-es10p}:${POSTGRES_PASSWORD:-es10p}@db:5432/${POSTGRES_DB:-es10p}}
     ports:
-      - "8000:8000"
+      - "${PORT:-8000}:8000"
     volumes:
       - ./uploads:/app/uploads
+    depends_on:
+      db:
+        condition: service_healthy
     restart: unless-stopped
 
   frontend:
@@ -15,5 +39,8 @@ services:
     ports:
       - "5173:80"
     depends_on:
-      - api
+      - es10p-api
     restart: unless-stopped
+
+volumes:
+  es10p_db_data:

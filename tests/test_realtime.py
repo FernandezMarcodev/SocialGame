@@ -163,7 +163,7 @@ class TestRealtimeHttp:
         payload = captured[0]
         assert payload["match_id"] == match_id
         assert payload["room_code"] == room["code"]
-        assert len(payload["order"]) == 2
+        assert len(payload["order"]) == 3 * 2
         assert payload["first_author"] in payload["order"]
 
     def test_join_publishes_room_updated(self, client, outbox):

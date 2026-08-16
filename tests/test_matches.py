@@ -40,7 +40,7 @@ def make_service(r: Room) -> MatchService:
 def created_match(r: Room) -> Match:
     service = make_service(r)
     match = service.create_match(r, r.creator_id)
-    match = service.initialize_match(match.match_id)
+    match = service.initialize_match(match)
     return match
 
 
@@ -113,7 +113,7 @@ class TestMatchService:
         match = service.create_match(r, "u1")
         assert match.state == "created"
         assert match.scores == {"u1": 0, "u2": 0, "u3": 0}
-        match = service.initialize_match(match.match_id)
+        match = service.initialize_match(match)
         assert match.state == "initialized"
         assert len(match.turn_order) == 9  # 3 jugadores x 3 rondas
         assert sorted(match.turn_order) == sorted(["u1", "u2", "u3"] * 3)
@@ -122,32 +122,32 @@ class TestMatchService:
         r = room(["u1", "u2"])
         service = make_service(r)
         match = service.create_match(r, "u1")
-        service.initialize_match(match.match_id)
-        service.start_first_turn(match.match_id)
+        service.initialize_match(match)
+        service.start_first_turn(match)
         assert match.state == "in_progress"
-        service.advance_round(match.match_id)
+        service.advance_round(match)
         assert match.state == "in_progress"
         assert match.turn_index == 1
         # La partida dura 3 rondas x 2 jugadores = 6 turnos.
         while match.state != "finished":
-            match = service.advance_round(match.match_id)
+            match = service.advance_round(match)
         assert match.turn_index == 6
 
     def test_finish_removes_room(self):
         r = room(["u1", "u2"])
         service = make_service(r)
         match = service.create_match(r, "u1")
-        service.initialize_match(match.match_id)
-        service.start_first_turn(match.match_id)
-        service.advance_round(match.match_id)
-        service.advance_round(match.match_id)
+        service.initialize_match(match)
+        service.start_first_turn(match)
+        for _ in range(len(match.turn_order)):
+            service.advance_round(match)
         assert service._rooms.get(r.code) is None
 
     def test_result_winner(self):
         r = room(["u1", "u2"])
         service = make_service(r)
         match = service.create_match(r, "u1")
-        service.initialize_match(match.match_id)
+        service.initialize_match(match)
         match.scores = {"u1": 3, "u2": 1}
         service._finish(match)
         result = service.result(match.match_id)
@@ -157,7 +157,7 @@ class TestMatchService:
         r = room(["u1", "u2", "u3"])
         service = make_service(r)
         match = service.create_match(r, "u1")
-        service.initialize_match(match.match_id)
+        service.initialize_match(match)
         match.scores = {"u1": 2, "u2": 2, "u3": 0}
         service._finish(match)
         result = service.result(match.match_id)
@@ -168,8 +168,8 @@ class TestMatchService:
         r = room(["u1", "u2"])
         service = make_service(r)
         match = service.create_match(r, "u1")
-        service.initialize_match(match.match_id)
-        service.start_first_turn(match.match_id)
+        service.initialize_match(match)
+        service.start_first_turn(match)
         with pytest.raises(ApiError) as exc:
             service.result(match.match_id)
         assert exc.value.code == "MATCH_NOT_FINISHED"
@@ -179,19 +179,19 @@ class TestMatchService:
         service = make_service(r)
         service.create_match(r, "u1")
         with pytest.raises(ApiError) as exc:
-            service.advance_round("m-inexistente")
+            service.get_match("m-inexistente")
         assert exc.value.code == "MATCH_NOT_FOUND"
 
     def test_advance_rejects_finished(self):
         r = room(["u1", "u2"])
         service = make_service(r)
         match = service.create_match(r, "u1")
-        service.initialize_match(match.match_id)
-        service.start_first_turn(match.match_id)
-        service.advance_round(match.match_id)
-        service.advance_round(match.match_id)
+        service.initialize_match(match)
+        service.start_first_turn(match)
+        for _ in range(len(match.turn_order)):
+            service.advance_round(match)
         with pytest.raises(ApiError) as exc:
-            service.advance_round(match.match_id)
+            service.advance_round(match)
         assert exc.value.code == "MATCH_NOT_ACTIVE"
 
     def test_create_rejects_non_creator(self):

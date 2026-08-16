@@ -132,7 +132,7 @@ RN-003. Todo usuario deberá autenticarse para acceder a las funcionalidades del
 
 RN-004. Un usuario no podrá participar simultáneamente en más de una sala.
 
-RN-005. Todo usuario dispondrá de una imagen de perfil generada automáticamente por el sistema en base a la inicial de su nombre de usuario. Esta versión del sistema no contempla la carga de una imagen de perfil personalizada.
+RN-005. Todo usuario dispondrá de una imagen de perfil generada automáticamente por el sistema en base a la inicial de su nombre de usuario. El usuario podrá además reemplazarla cargando una imagen de perfil propia (JPG/PNG/WEBP/GIF, máx. 2 MB) mediante `PUT /api/v1/users/me/avatar`; en ese caso deja de aplicarse la imagen generada (ver RV-001).
 
 ## 3.2 Gestión de salas
 
@@ -150,7 +150,7 @@ RN-011. La modalidad de juego será seleccionada por el creador de la sala antes
 
 ## 3.3 Desarrollo de la partida
 
-A los efectos de esta sección se entiende por “ronda” al ciclo completo de la partida, compuesto por un turno de cada jugador participante. En esta versión del sistema, la partida está compuesta por una única ronda. Se entiende por “turno” al paso individual dentro de la ronda, correspondiente a un jugador determinado: dicho jugador actúa como autor de la frase, mientras el resto de los jugadores activos actúa como votante.
+A los efectos de esta sección se entiende por “ronda” a un ciclo de la partida compuesto por un turno de cada jugador participante. En esta versión del sistema, la partida está compuesta por 3 rondas (RN-002*), cada una con su propio orden de participación. Se entiende por “turno” al paso individual dentro de una ronda, correspondiente a un jugador determinado: dicho jugador actúa como autor de la frase, mientras el resto de los jugadores activos actúa como votante.
 
 RN-012. El jugador que tenga el turno deberá completar la frase correspondiente a la modalidad seleccionada y asignarle un puntaje secreto entero comprendido entre 1 y 10.
 
@@ -174,9 +174,9 @@ RN-020. Al finalizar cada turno, el sistema mostrará el puntaje secreto, los vo
 
 ## 3.5 Finalización
 
-RN-021. Una partida finalizará cuando se hayan completado todos los turnos que componen la ronda. Se considerará que un jugador participó en la ronda cuando haya actuado como autor en su propio turno y haya emitido su voto en cada uno de los turnos de los demás jugadores activos.
+RN-021. Una partida finalizará cuando se hayan completado todos los turnos que componen las 3 rondas. Se considerará que un jugador participó en una ronda cuando haya actuado como autor en su propio turno y haya emitido su voto en cada uno de los turnos de los demás jugadores activos.
 
-RN-022. La ronda estará compuesta por una cantidad de turnos igual a la cantidad de jugadores presentes al inicio de la partida. Esta cantidad no se recalcula si algún jugador abandona la partida; los turnos correspondientes al jugador que abandonó quedan descartados conforme a lo establecido en RN-017, sin ser reemplazados por turnos adicionales de otros jugadores.
+RN-022. La partida estará compuesta por 3 rondas (RN-002*); cada ronda tiene una cantidad de turnos igual a la cantidad de jugadores presentes al inicio de la partida. El orden de cada ronda se genera como una permutación independiente de los jugadores (no se recalcula si algún jugador abandona); los turnos correspondientes a un jugador que abandona o expira quedan descartados conforme a RN-017, sin reemplazo.
 
 RN-023. Si dos o más jugadores finalizan con el mayor puntaje, el sistema declarará un empate.
 
@@ -184,7 +184,7 @@ RN-023. Si dos o más jugadores finalizan con el mayor puntaje, el sistema decla
 
 RN-024. Al finalizar la partida, la sala será eliminada automáticamente.
 
-RN-025. La partida estará compuesta por una única ronda, integrada por tantos turnos como jugadores participen al inicio. En cada turno, un jugador distinto actuará como autor de la frase, mientras el resto de los jugadores activos actuará como votante.
+RN-025. La partida estará compuesta por 3 rondas (RN-002*), cada una integrada por tantos turnos como jugadores participen al inicio. En cada turno, un jugador distinto actuará como autor de la frase, mientras el resto de los jugadores activos actuará como votante.
 
 RN-026. El sistema permitirá seleccionar únicamente modalidades de juego previamente configuradas.
 
@@ -2778,11 +2778,11 @@ Convenciones de estado: **Implementado** (verificado por pruebas automatizadas),
 | RN-018 (puntos solo al autor) | `ScoringService` | Implementado |
 | RN-019 (un punto por acierto exacto) | `ScoringService` | Implementado |
 | RN-020 (mostrar secreto, votos y acumulado) | etapa `result` del frontend | Implementado |
-| RN-021 (fin al completar la ronda) | `MatchService` | Implementado |
-| RN-022 (ronda = n.º de jugadores; turnos descartados) | `TurnService` (descartes por timeout; el abandono está bloqueado) | Parcial (RV-008) |
+| RN-021 (fin al completar las 3 rondas) | `MatchService` (`advance_round` hasta `turn_index >= len(turn_order)`) | Implementado (RV-012) |
+| RN-022 (3 rondas; turnos descartados) | `MatchService._TOTAL_ROUNDS`, `TurnService` (descartes por timeout; el abandono está bloqueado) | Parcial (RV-008, RV-012) |
 | RN-023 (empate) | `ScoringService` / `GET result` | Implementado |
 | RN-024 (eliminar sala al finalizar) | ciclo de vida de la sala | Implementado |
-| RN-025 (ronda única, un autor por turno) | `Match.turn_order` / `TurnService` | Implementado |
+| RN-025 (3 rondas, un autor por turno) | `Match.turn_order` (3 permutaciones) / `TurnService` | Implementado (RV-012) |
 | RN-026 (solo modalidades configuradas) | catálogo `app/services/catalog.py` | Implementado |
 | RN-027 (código único mientras activa) | `RoomStore` (generación y unicidad) | Implementado |
 
@@ -2838,6 +2838,7 @@ Tipo de cambio: **Cambio** (modifica un requisito o regla existente) · **Emerge
 | RV-009 | Divergencia | B.2.7 (DDD) | La envoltura WebSocket implementada es `{event, data}` y la especificada en el DDD era `{type, timestamp, data}`. El DDD se actualizó a la forma implementada (ver DDD §B.2.7). | Se documenta la envoltura real en el DDD. | Documentado |
 | RV-010 | Divergencia | RF-COM-006…009, RF-TUR-002 | Los eventos de turno, marcador y finalización de partida **no se emiten por WebSocket**: el frontend los obtiene por polling REST. El canal WS cubre por ahora el ciclo de sala (`room.updated`, `room.cancelled`, `match.started`). | Se mantiene el polling como mecanismo transitorio; candidato a migrar a WS completo. | Pendiente |
 | RV-011 | Emergente | RF-USR-007 / UX | Corrección de usabilidad: el frontend **preserva el borrador de la frase** del autor mientras se re-sincroniza con el backend (antes, cada poll reconstruía el formulario y borraba lo escrito). | Se evita re-renderizar el formulario cuando nada relevante cambió. | Implementado |
+| RV-012 | Cambio | RN-021, RN-022, RN-025 | El sistema fija el número de rondas de la partida en **3 rondas** (`_TOTAL_ROUNDS = 3` en `MatchService`), en lugar de la “única ronda” original. Cada ronda reparte una permutación independiente de los jugadores (`turn_order` = 3×n), y `MatchOut` expone `total_rounds` y `turn_index` para el progreso. | Se actualizan RN-021/RN-022/RN-025 a “3 rondas” y el DDD (§4.4, B.2.4) y la Definición General (§1.3, §3) se alinean al sistema. | Implementado |
 
 # Apéndice A – Glosario de Términos y Acrónimos
 
@@ -2856,7 +2857,7 @@ A continuación, se presenta el glosario de términos técnicos, de dominio y ac
 | Imagen de perfil | Representación visual predeterminada asociada a la cuenta de un usuario, generada automáticamente por el sistema a partir de la inicial de su nombre de usuario. |
 | JSON | Formato estándar (JavaScript Object Notation) utilizado para el intercambio de información entre los distintos componentes del sistema. |
 | Modalidad de juego | Configuración predefinida que determina el tipo de frase a completar durante una partida. |
-| Partida | Instancia de juego iniciada a partir de una sala, compuesta por una ronda de turnos entre los jugadores participantes. |
+| Partida | Instancia de juego iniciada a partir de una sala, compuesta por 3 rondas de turnos entre los jugadores participantes. |
 | Puntaje secreto | Valor numérico entero, comprendido entre 1 y 10, asignado por el autor de una frase y utilizado como referencia para el cálculo de puntos. |
 | PostgreSQL | Sistema gestor de bases de datos relacional utilizado para la persistencia de la información del sistema. |
 | RF | Prefijo utilizado para identificar un Requisito Funcional dentro del presente documento (por ejemplo, RF-USR-001). |
@@ -2866,6 +2867,6 @@ A continuación, se presenta el glosario de términos técnicos, de dominio y ac
 | Sala | Espacio virtual privado, identificado mediante un código único, en el cual los jugadores se reúnen antes del inicio de una partida. |
 | SRS | Sigla de Software Requirements Specification: Documento de Especificación de Requisitos de Software. |
 | Token | Credencial generada por el sistema tras un inicio de sesión exitoso, utilizada para autenticar las solicitudes posteriores del usuario. |
-| Turno | Paso individual dentro de una ronda, correspondiente a un jugador que actúa como autor de una frase, mientras el resto de los jugadores activos actúa como votante. |
+| Turno | Paso individual dentro de una ronda (3 rondas por partida), correspondiente a un jugador que actúa como autor de una frase, mientras el resto de los jugadores activos actúa como votante. |
 | Voto | Valor numérico entero, comprendido entre 1 y 10, emitido por un jugador para intentar acertar el puntaje secreto asignado por el autor de la frase. |
 | WebSocket | Protocolo de comunicación bidireccional utilizado para la transmisión de eventos en tiempo real entre el servidor y los clientes conectados. |

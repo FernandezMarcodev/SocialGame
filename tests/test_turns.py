@@ -38,9 +38,58 @@ def get_turn(client, token, match_id, turn_id):
     return resp.json()
 
 
+def _id_to_token(client, tokens):
+    return {
+        client.get("/api/v1/users/me", headers=auth_headers(t)).json()["id"]: t
+        for t in tokens
+    }
+
+
+def finish_match(client, tokens, match_id, id_to_tok, winner=False):
+    """Juega los turnos restantes de una partida hasta finalizarla (3 rondas).
+
+    Si ``winner`` es True, el último jugador pierde siempre (vota distinto al
+    secreto cuando es autor) para garantizar un ganador único.
+    """
+    loser_id = list(id_to_tok.keys())[-1] if winner else None
+    secret = 5
+    while True:
+        m = get_match(client, tokens[0], match_id)
+        if m["state"] == "finished":
+            break
+        turn = get_turn(client, tokens[0], match_id, m["current_turn"])
+        aid = turn["author_id"]
+        atok = id_to_tok[aid]
+        resp = client.post(
+            f"/api/v1/matches/{match_id}/phrase",
+            json={"phrase": "frase de prueba", "secret_score": secret},
+            headers=auth_headers(atok),
+        )
+        assert resp.status_code == 200, resp.text
+        for vt in tokens:
+            if vt == atok:
+                continue
+            vote = secret if (loser_id is None or aid != loser_id) else 1
+            resp = client.post(
+                f"/api/v1/matches/{match_id}/votes",
+                json={"score": vote},
+                headers=auth_headers(vt),
+            )
+            assert resp.status_code == 200, resp.text
+
+
+def play_match_to_end(client, outbox, amount=2, winner=False):
+    """Crea y juega una partida completa (3 rondas) hasta finalizarla."""
+    tokens, match_id, author_tok, voters = match_and_turn(client, outbox, amount)
+    id_to_tok = _id_to_token(client, tokens)
+    finish_match(client, tokens, match_id, id_to_tok, winner=winner)
+    return tokens, match_id, id_to_tok
+
+
 class TestTurnHttp:
     def test_full_round_two_players(self, client, outbox):
-        _, match_id, author_tok, voters = match_and_turn(client, outbox, 2)
+        tokens, match_id, author_tok, voters = match_and_turn(client, outbox, 2)
+        id_to_tok = _id_to_token(client, tokens)
         voter_tok = voters[0]
 
         turn1_id = get_match(client, author_tok, match_id)["current_turn"]
@@ -80,23 +129,13 @@ class TestTurnHttp:
         assert turn2["author_id"] == author2
         assert turn2["state"] == "active"
 
-        resp = client.post(
-            f"/api/v1/matches/{match_id}/phrase",
-            json={"phrase": "Es un 10 pero duermo con el celu", "secret_score": 7},
-            headers=auth_headers(voter_tok),
-        )
-        assert resp.status_code == 200, resp.text
-        resp = client.post(
-            f"/api/v1/matches/{match_id}/votes",
-            json={"score": 3},
-            headers=auth_headers(author_tok),
-        )
-        assert resp.status_code == 200, resp.text
+        # Completa las 3 rondas (restan los turnos 2..6) y verifica el cierre.
+        finish_match(client, tokens, match_id, id_to_tok, winner=False)
 
         final = get_match(client, author_tok, match_id)
         assert final["state"] == "finished"
-        author1 = client.get("/api/v1/users/me", headers=auth_headers(author_tok)).json()["id"]
-        assert final["scores"] == {author1: 1, author2: 0}
+        # 3 rondas x 1 punto por acierto exacto = 6 puntos en total.
+        assert sum(final["scores"].values()) == 6
 
         resp = client.get(f"/api/v1/rooms/{final['room_code']}", headers=auth_headers(author_tok))
         assert resp.status_code == 404
@@ -222,9 +261,9 @@ class TestTurnServiceUnit:
         )
         rstore.add(room)
         match = matches.create_match(room, "u1")
-        matches.initialize_match(match.match_id)
+        matches.initialize_match(match)
         match.turn_order = list(order if order is not None else players)
-        turn = turns.start_match(match.match_id)
+        turn = turns.start_match(match)
         return clock, matches, turns, match, turn
 
     def test_author_timeout_discards_and_advances(self):

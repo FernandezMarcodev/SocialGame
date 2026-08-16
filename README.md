@@ -46,12 +46,42 @@ cd frontend && npm run test:e2e
 
 ## Cómo hostear
 
+La aplicación lee toda su configuración desde el archivo `.env` (variables de
+entorno). La base de datos es **PostgreSQL real** en ambos casos: no hay modo
+memoria en producción. Para hostear, solo tenés que reemplazar los datos del
+`.env` y levantar los contenedores.
+
+### 0. Preparar el `.env`
+
 ```bash
-docker compose up --build
+cp .env.example .env
 ```
 
-- API: `http://localhost:8000`
-- Frontend (nginx, sirve los estáticos y proxya `/api`): `http://localhost:5173`
+Editá `.env` con tus valores. Hay dos modos de base de datos:
+
+- **A) Postgres incluido (VPS propio / desarrollo):** completá `POSTGRES_USER`,
+  `POSTGRES_PASSWORD` y `POSTGRES_DB`. La URL interna se arma sola.
+- **B) Base de datos gestionada externa (Render, Railway, Supabase, Fly…):**
+  definí `DATABASE_URL` con la URL completa que te da el proveedor. El Postgres
+  local no se usa.
+
+### 1. Levantar
+
+```bash
+# Modo A (incluye Postgres)
+docker compose up --build -d
+
+# Modo B (BD externa, sin Postgres local)
+docker compose -f docker-compose.yml -f docker-compose.prod.yml up --build -d
+```
+
+- API: `http://localhost:8000` (Swagger en `/docs`, health en `/health`)
+- Frontend (nginx, sirve los estáticos y proxya `/api` y WS): `http://localhost:5173`
+
+El entrypoint aplica automáticamente las migraciones (`alembic upgrade head`)
+al arrancar, y reintenta si la base de datos todavía no está lista. En
+producción recordá configurar `EMAIL_PROVIDER=smtp` con tus credenciales SMTP
+para que se envíen los correos de verificación.
 
 ## Endpoints principales (todos bajo `/api/v1`)
 

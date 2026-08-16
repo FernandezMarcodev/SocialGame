@@ -71,6 +71,10 @@ class MatchService:
             raise ApiError(404, "MATCH_NOT_FOUND", "La partida no existe.")
         return match
 
+    def update(self, match: Match) -> None:
+        """Persiste los cambios de una partida en el store subyacente."""
+        self._matches.update(match)
+
     # ------------------------------------------------------------------ #
     # Ciclo de vida
     # ------------------------------------------------------------------ #
@@ -104,14 +108,13 @@ class MatchService:
         self._matches.add(match)
         return match
 
-    def initialize_match(self, match_id: str) -> Match:
+    def initialize_match(self, match: Match) -> Match:
         """Inicializa la partida y genera el orden de participación (RF-PAR-002/003).
 
         El orden se genera para las ``_TOTAL_ROUNDS`` rondas: cada ronda es una
         permutación independiente de los jugadores, de modo que toda partida
         tiene exactamente 3 rondas (RN-002).
         """
-        match = self.get_match(match_id)
         if match.state != "created":
             raise ApiError(409, "MATCH_WRONG_STATE", "La partida no puede inicializarse.")
         base = [p.id for p in match.players]
@@ -122,30 +125,31 @@ class MatchService:
             order.extend(round_order)
         match.turn_order = order
         match.state = "initialized"
+        self._matches.update(match)
         return match
 
-    def start_first_turn(self, match_id: str) -> Match:
+    def start_first_turn(self, match: Match) -> Match:
         """Marca la partida como en curso con el primer autor (puente a RF-TUR-001)."""
-        match = self.get_match(match_id)
         if match.state != "initialized":
             raise ApiError(409, "MATCH_WRONG_STATE", "La partida no está inicializada.")
         match.state = "in_progress"
+        self._matches.update(match)
         return match
 
-    def advance_round(self, match_id: str) -> Match:
+    def advance_round(self, match: Match) -> Match:
         """Avanza al siguiente turno o finaliza la ronda (RF-PAR-005/006)."""
-        match = self.get_match(match_id)
         if match.state not in ("initialized", "in_progress"):
             raise ApiError(409, "MATCH_NOT_ACTIVE", "La partida no está en curso.")
+        match.current_turn = None
         match.turn_index += 1
         if match.turn_index >= len(match.turn_order):
             return self._finish(match)
         match.state = "in_progress"
+        self._matches.update(match)
         return match
 
-    def finish_round(self, match_id: str) -> Match:
+    def finish_round(self, match: Match) -> Match:
         """Fuerza el cierre de la ronda (RF-PAR-006)."""
-        match = self.get_match(match_id)
         if match.state != "in_progress":
             raise ApiError(409, "MATCH_NOT_ACTIVE", "La partida no está en curso.")
         return self._finish(match)
@@ -166,6 +170,7 @@ class MatchService:
     def _finish(self, match: Match) -> Match:
         match.state = "finished"
         self._rooms.remove(match.room_code)
+        self._matches.update(match)
         return match
 
     @staticmethod

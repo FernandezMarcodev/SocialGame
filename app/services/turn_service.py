@@ -82,10 +82,9 @@ class TurnService:
     # Ciclo de vida
     # ------------------------------------------------------------------ #
 
-    def start_match(self, match_id: str) -> Turn:
+    def start_match(self, match: Match) -> Turn:
         """Crea el primer turno de la partida (RF-TUR-001, RF-PAR-002)."""
-        match = self._matches.get_match(match_id)
-        self._matches.start_first_turn(match_id)
+        self._matches.start_first_turn(match)
         return self._create_turn(match)
 
     def settle_expired(self, match_id: str) -> Match:
@@ -101,7 +100,9 @@ class TurnService:
         elif turn.state == "voting" and now > turn.voting_ends_at:
             self._finalize(turn, match)
             self._advance(match)
-        return match
+        self._turns.update(turn)
+        self._matches.update(match)
+        return self._matches.get_match(match_id)
 
     # ------------------------------------------------------------------ #
     # Acciones del autor y votantes
@@ -130,6 +131,7 @@ class TurnService:
         turn.secret_score = secret_score
         turn.state = "voting"
         turn.voting_ends_at = now + self._settings.voting_timeout_seconds * 1000
+        self._turns.update(turn)
         return turn
 
     def submit_vote(self, user_id: str, match_id: str, score: int) -> Turn:
@@ -158,6 +160,8 @@ class TurnService:
         if len(turn.votes) >= voters:
             self._finalize(turn, match)
             self._advance(match)
+        self._turns.update(turn)
+        self._matches.update(match)
         return turn
 
     # ------------------------------------------------------------------ #
@@ -185,17 +189,21 @@ class TurnService:
         )
         self._turns.add(turn)
         match.current_turn = turn.turn_id
+        self._matches.update(match)
         return turn
 
     def _discard(self, turn: Turn) -> None:
         turn.state = "discarded"
+        self._turns.update(turn)
 
     def _finalize(self, turn: Turn, match: Match) -> None:
         turn.state = "finished"
         self._scoring.apply_turn(turn, match)
+        self._turns.update(turn)
+        self._matches.update(match)
 
     def _advance(self, match: Match) -> None:
         match.current_turn = None
-        self._matches.advance_round(match.match_id)
+        self._matches.advance_round(match)
         if match.state == "in_progress":
             self._create_turn(match)

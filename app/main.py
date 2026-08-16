@@ -15,7 +15,7 @@ from app.api.errors import (
 from app.api.routers import auth, matches, modalities, rooms, scoring, turns, users
 from app.api.ws import router as realtime_router
 from app.core.config import Settings, get_settings
-from app.email.provider import ConsoleEmailProvider
+from app.email.provider import ConsoleEmailProvider, SmtpEmailProvider
 from app.services.auth_service import AuthService
 from app.services.match_service import MatchService
 from app.services.realtime_service import ConnectionManager, EventBus, RealtimeService
@@ -45,12 +45,43 @@ def create_app(
         version=settings.app_version,
     )
 
-    user_store = MemoryUserStore()
-    session_store = MemorySessionStore()
-    verification_store = MemoryVerificationStore()
-    room_store = MemoryRoomStore()
-    match_store = MemoryMatchStore()
-    email_provider = ConsoleEmailProvider(outbox)
+    if settings.database_url:
+        from app.stores.database import (
+            Database,
+            DatabaseMatchStore,
+            DatabaseRoomStore,
+            DatabaseSessionStore,
+            DatabaseTurnStore,
+            DatabaseUserStore,
+            DatabaseVerificationStore,
+        )
+
+        db = Database(settings.database_url)
+        user_store = DatabaseUserStore(db)
+        session_store = DatabaseSessionStore(db)
+        verification_store = DatabaseVerificationStore(db)
+        room_store = DatabaseRoomStore(db)
+        match_store = DatabaseMatchStore(db)
+        turn_store = DatabaseTurnStore(db)
+        if settings.email_provider == "smtp" and settings.smtp_host:
+            email_provider = SmtpEmailProvider(
+                host=settings.smtp_host,
+                port=settings.smtp_port,
+                user=settings.smtp_user,
+                password=settings.smtp_password,
+                frm=settings.smtp_from,
+                use_tls=settings.smtp_use_tls,
+            )
+        else:
+            email_provider = ConsoleEmailProvider(outbox)
+    else:
+        user_store = MemoryUserStore()
+        session_store = MemorySessionStore()
+        verification_store = MemoryVerificationStore()
+        room_store = MemoryRoomStore()
+        match_store = MemoryMatchStore()
+        turn_store = MemoryTurnStore()
+        email_provider = ConsoleEmailProvider(outbox)
 
     event_bus = EventBus()
     connection_manager = ConnectionManager()
@@ -76,7 +107,7 @@ def create_app(
     turn_service = TurnService(
         settings=settings,
         matches=match_service,
-        turns=MemoryTurnStore(),
+        turns=turn_store,
         scoring=scoring_service,
     )
     rooms_service = RoomService(

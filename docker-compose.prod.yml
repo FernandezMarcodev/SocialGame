@@ -1,0 +1,21 @@
+# Override de producción para usar una base de datos gestionada externa
+# (Render, Railway, Supabase, Fly, RDS, etc.) sin levantar Postgres local.
+#
+# Uso:
+#   1. Copiá .env.example a .env y completá DATABASE_URL con la URL del proveedor.
+#   2. docker compose -f docker-compose.yml -f docker-compose.prod.yml up --build
+#
+# También sirve tal cual en plataformas que corren la imagen directamente:
+# definí DATABASE_URL (y las vars de email) como variables de entorno.
+
+services:
+  # El servicio de Postgres local queda anulado (no hace nada, no consume DB).
+  db:
+    image: alpine:3.20
+    entrypoint: ["true"]
+
+  es10p-api:
+    depends_on: []
+    environment:
+      # En producción la URL completa siempre viene del .env / entorno.
+      DATABASE_URL: ${DATABASE_URL}

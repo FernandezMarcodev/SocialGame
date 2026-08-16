@@ -29,9 +29,9 @@ El juego se basa en completar una frase según una modalidad seleccionada y asig
 ## 1.3 Restricciones y alcance de la solución (v1)
 
 - Partidas privadas entre grupos reducidos (mínimo 2 y máximo 6 jugadores).
-- Una única ronda por partida, con tantos turnos como jugadores haya al inicio.
+- Tres rondas por partida (cada ronda con tantos turnos como jugadores haya al inicio), según RN-002* / RV-012.
 - Mínimo de 2 jugadores para iniciar una partida.
-- En esta versión no se incluyen: chat, amigos, rankings, estadísticas históricas, autenticación externa, usuarios administradores ni carga de imágenes de perfil personalizadas.
+- En esta versión no se incluyen: chat, amigos, rankings, estadísticas históricas, autenticación externa ni usuarios administradores. La carga de una imagen de perfil personalizada (RV-001) sí está contemplada.
 # 2. Solución planteada (visión general)
 
 Se desarrollará un backend desacoplado que expone una API REST para las operaciones de dominio y un canal WebSocket para la sincronización en tiempo real. La interfaz gráfica es un cliente independiente (web, móvil o escritorio) que consume estos contratos.
@@ -58,7 +58,7 @@ Principios rectores: arquitectura cliente-servidor con contratos JSON, lógica d
 - Partida: puntaje secreto y votos enteros 1–10 (RN-012, RN-015); un voto por jugador por turno (RN-014); secreto y votos ocultos hasta publicar (RN-013, RN-016).
 - Puntuación: puntos solo al autor (RN-018), un punto por acierto exacto (RN-019), y al cierre del turno se muestra secreto, votos y marcador (RN-020).
 - Abandono: el jugador desconectado pierde los turnos restantes; si quedan menos de 2 jugadores activos, la partida finaliza (RN-017, RN-021, RN-022).
-- Finalización: ronda única; empate si hay más de un máximo (RN-023); la sala se elimina al finalizar (RN-024).
+- Finalización: 3 rondas; empate si hay más de un máximo (RN-023); la sala se elimina al finalizar (RN-024).
 # 4. Arquitectura del sistema
 
                   contratos JSON (REST)

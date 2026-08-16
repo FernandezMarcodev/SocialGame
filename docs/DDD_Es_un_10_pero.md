@@ -673,7 +673,7 @@ Restricciones técnicas, de negocio y de estándares que condicionan el diseño.
 
 - Partidas privadas entre grupos reducidos; todas las salas requieren código único (RN-006, RN-027).
 - Cantidad de jugadores por sala: mínimo 2 y máximo 6 (RN-008).
-- Partida compuesta por una única ronda con tantos turnos como jugadores al inicio (RN-022, RN-025).
+- Partida compuesta por 3 rondas, cada una con tantos turnos como jugadores al inicio (RN-022, RN-025, RV-012). `MatchService._TOTAL_ROUNDS = 3`.
 - Puntaje secreto y votos: enteros entre 1 y 10 (RN-012, RN-015); un voto por jugador y por turno (RN-014).
 - Sin chat, amigos, rankings, estadísticas ni autenticación externa en v1 (SRS 1.2).
 - Sin usuario administrador funcional (SRS 2.3).
@@ -783,7 +783,7 @@ Contexto: RNF-EFI-002 exige eventos en tiempo real sin polling. Decisión: gatew
 
 ## AD-005 — SQLAlchemy 2.0 async + Alembic
 
-Contexto: persistencia en PostgreSQL (RNF-FIA-003). Decisión: SQLAlchemy async con psycopg async y migraciones Alembic. Consecuencias: esquema versionable, consultas no bloqueantes. Estado: Aceptada.
+Contexto: persistencia en PostgreSQL (RNF-FIA-003). Decisión: SQLAlchemy async con psycopg async y migraciones Alembic. Consecuencias: esquema versionable, consultas no bloqueantes. Estado: Aceptada (arquitectura objetivo; **no implementada aún**: el build actual usa `app/stores/memory.py`, 100% en memoria, coherente con AD-003 para el estado de juego). Ver nota en B.2.8.
 
 ## AD-006 — Argon2id + Pydantic
 
@@ -853,7 +853,7 @@ Este apéndice define, por módulo, los contratos que los clientes (frontend web
 
 `Player`:
 ```json
-{ "id": "usr-3f2a91c4d8", "username": "ken2000", "joined_at": 1760000000001 }
+{ "id": "usr-3f2a91c4d8", "username": "ken2000", "joined_at": 1760000000001, "profile_image_url": "/avatars/k.svg" }
 ```
 
 ## B.2 Contratos por módulo
@@ -887,7 +887,7 @@ Reglas de negocio no negociables:
 | PATCH | `/api/v1/users/me` | Sí | `{username?, email?}` (opcionales) | `200` → `User` | `USERNAME_TAKEN` · `EMAIL_TAKEN` · `VALIDATION_ERROR` |
 | GET | `/api/v1/modalities` | Sí | `—` | `200` → `{items: [Modality], total}` | `—` |
 
-- `profile_image_url` es generada por el servidor a partir de la inicial del username (RF-USR-005); no acepta subida de imagen (RN-005).
+- `profile_image_url` es generada por el servidor a partir de la inicial del username (RF-USR-005) y puede ser reemplazada por una imagen propia cargada en `PUT /api/v1/users/me/avatar` (RV-001); en ese caso apunta a `/uploads/{id}{ext}`.
 - La lista de modalidades es el catálogo precargado de plantillas de frase (AD-007); es la única fuente de `modality_id` para crear salas.
 
 ### B.2.3 Módulo de salas (RF-SAL-001 a 008)
@@ -935,11 +935,13 @@ Reglas de negocio no negociables:
   "turn_order": ["usr-3f2a91c4d8", "usr-a91c4d8f3", "usr-f3a91c4d82"],
   "current_turn": "t-57a30c9d11",
   "scores": {"usr-3f2a91c4d8": 1},
-  "created_at": 1760000000000
+  "created_at": 1760000000000,
+  "turn_index": 0,
+  "total_rounds": 3
 }
 ```
 
-- `turn_order` se genera aleatoriamente al inicializar (RF-PAR-003) y no se recalcula si un jugador abandona (RN-017/RN-022).
+- `turn_order` se genera aleatoriamente al inicializar (RF-PAR-003) y no se recalcula si un jugador abandona (RN-017/RN-022). Está compuesto por `total_rounds = 3` bloques, cada uno una permutación independiente de los jugadores (RV-012); `turn_index` indica el progreso dentro del orden total.
 - `scores` se actualiza tras cada `turn.result` (RF-PUN-002).
 - Transiciones (4.4.2): `created` → `initialized` (RF-PAR-002) → `in_progress` (primer turno) → `finished` (RF-PAR-006; también si quedan menos de 2 activos, RN-017).
 - Eventos WS: `match.started` (RF-COM-005) · `match.finished` (RF-COM-009).
@@ -1010,7 +1012,7 @@ Reglas de negocio no negociables:
 
 ### B.2.8 Módulo de persistencia (RF-PER-001 a 005)
 
-No expone contratos front-back: su superficie es interna (almacén PostgreSQL, DDD cap. 3). Los módulos anteriores persisten a través de él (usuarios, modalidades y frase completa de cada turno, RF-PER-005); el resto del estado de juego es efímero en memoria (AD-003, RN-024).
+No expone contratos front-back: su superficie es interna. **Estado de implementación:** el build actual no incluye PostgreSQL ni SQLAlchemy; todos los datos (usuarios, modalidades, salas, partidas, turnos, sesiones, códigos) viven en `app/stores/memory.py` (en memoria por proceso, coherente con AD-003). La persistencia en PostgreSQL mediante SQLAlchemy 2.0 async + Alembic (AD-005, RNF-FIA-003) es la arquitectura objetivo pendiente de implementar; los `Protocol` de `app/stores/base.py` están definidos para permitir esa migración sin tocar los servicios. La frase completa de cada turno (RF-PER-005) hoy viaja en memoria dentro de `Turn`.
 
 ## B.3 Catálogo consolidado de endpoints REST
 

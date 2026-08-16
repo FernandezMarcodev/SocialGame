@@ -15,12 +15,22 @@ class Settings(BaseSettings):
     app_version: str = "0.1.0"
     debug: bool = False
 
+    database_url: str = ""
+
     token_ttl_seconds: int = 86400
     verify_token_ttl_seconds: int = 86400
     reset_token_ttl_seconds: int = 3600
     max_login_attempts: int = 5
     lockout_seconds: int = 300
     email_provider: str = "console"
+
+    smtp_host: str = ""
+    smtp_port: int = 587
+    smtp_user: str = ""
+    smtp_password: str = ""
+    smtp_from: str = ""
+    smtp_use_tls: bool = True
+
     room_min_players: int = 2
     room_max_players: int = 6
     author_timeout_seconds: int = 60

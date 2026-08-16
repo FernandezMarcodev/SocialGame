@@ -111,8 +111,8 @@ class RoomService:
             raise ApiError(409, "ROOM_NOT_AVAILABLE", "La sala no admite nuevos jugadores.")
         if len(room.players) >= room.max_players:
             raise ApiError(409, "ROOM_FULL", "La sala está completa.")
-        self._rooms.add_player(code, self._player_ref(user))
-        return room
+        updated = self._rooms.add_player(code, self._player_ref(user))
+        return updated if updated is not None else room
 
     def leave_room(self, user: User, code: str) -> Room:
         room = self.get_room(code)
@@ -122,10 +122,12 @@ class RoomService:
             raise ApiError(
                 409, "ROOM_NOT_AVAILABLE", "No se puede abandonar: la partida ya inició."
             )
-        self._rooms.remove_player(code, user.id)
+        room = self._rooms.remove_player(code, user.id)
+        if room is None:
+            return room
         if room.creator_id == user.id and room.players:
-            self._rooms.set_creator(code, room.players[0].id)
-        if not room.players:
+            room = self._rooms.set_creator(code, room.players[0].id)
+        if room is not None and not room.players:
             self._rooms.remove(code)
         return room
 
@@ -152,7 +154,7 @@ class RoomService:
                 f"Se necesitan al menos {room.min_players} jugadores.",
             )
         match = self._matches.create_match(room, user.id)
-        self._matches.initialize_match(match.match_id)
-        self._turns.start_match(match.match_id)
+        self._matches.initialize_match(match)
+        self._turns.start_match(match)
         self._rooms.set_state(code, "in_match")
         return {"match_id": match.match_id}

@@ -8,7 +8,7 @@ from app.services.match_service import MatchService
 from app.services.scoring_service import ScoringService
 from app.stores.memory import MemoryMatchStore, MemoryRoomStore
 from tests.test_auth import auth_headers
-from tests.test_turns import match_and_turn
+from tests.test_turns import match_and_turn, play_match_to_end
 
 
 class TestScoringHttp:
@@ -59,53 +59,23 @@ class TestScoringHttp:
         assert resp.json()["error"]["code"] == "MATCH_NOT_FINISHED"
 
     def test_result_winner_after_round(self, client, outbox):
-        _, match_id, author_tok, voters = match_and_turn(client, outbox, 2)
-        voter_tok = voters[0]
-        client.post(
-            f"/api/v1/matches/{match_id}/phrase",
-            json={"phrase": "Es un 10 pero como lento", "secret_score": 6},
-            headers=auth_headers(author_tok),
-        )
-        client.post(
-            f"/api/v1/matches/{match_id}/votes", json={"score": 6}, headers=auth_headers(voter_tok)
-        )
-        client.post(
-            f"/api/v1/matches/{match_id}/phrase",
-            json={"phrase": "Es un 10 pero sueno", "secret_score": 4},
-            headers=auth_headers(voter_tok),
-        )
-        client.post(
-            f"/api/v1/matches/{match_id}/votes", json={"score": 2}, headers=auth_headers(author_tok)
-        )
+        tokens, match_id, id_to_tok = play_match_to_end(client, outbox, 2, winner=True)
+        author_tok = tokens[0]
+        winner_id = client.get("/api/v1/users/me", headers=auth_headers(tokens[0])).json()["id"]
+        loser_id = client.get("/api/v1/users/me", headers=auth_headers(tokens[-1])).json()["id"]
         resp = client.get(
             f"/api/v1/matches/{match_id}/result", headers=auth_headers(author_tok)
         )
         assert resp.status_code == 200, resp.text
         data = resp.json()
-        author1 = client.get("/api/v1/users/me", headers=auth_headers(author_tok)).json()["id"]
-        assert data["winner_id"] == author1
+        assert data["winner_id"] == winner_id
         assert data["tied"] is False
-        assert data["scores"][author1] == 1
+        assert data["scores"][winner_id] == 3
+        assert data["scores"][loser_id] == 0
 
     def test_result_tie(self, client, outbox):
-        _, match_id, author_tok, voters = match_and_turn(client, outbox, 2)
-        voter_tok = voters[0]
-        client.post(
-            f"/api/v1/matches/{match_id}/phrase",
-            json={"phrase": "a frase uno", "secret_score": 5},
-            headers=auth_headers(author_tok),
-        )
-        client.post(
-            f"/api/v1/matches/{match_id}/votes", json={"score": 5}, headers=auth_headers(voter_tok)
-        )
-        client.post(
-            f"/api/v1/matches/{match_id}/phrase",
-            json={"phrase": "a frase dos", "secret_score": 5},
-            headers=auth_headers(voter_tok),
-        )
-        client.post(
-            f"/api/v1/matches/{match_id}/votes", json={"score": 5}, headers=auth_headers(author_tok)
-        )
+        tokens, match_id, id_to_tok = play_match_to_end(client, outbox, 2, winner=False)
+        author_tok = tokens[0]
         resp = client.get(
             f"/api/v1/matches/{match_id}/result", headers=auth_headers(author_tok)
         )
@@ -145,7 +115,7 @@ class TestScoringService:
         scoring, match, turn = _scoring_setup(["u1", "u2", "u3"])
         _finish_turn(turn, secret=6, values=[6, 2])
         scoring.apply_turn(turn, match)
-        scoring._matches.advance_round(match.match_id)
+        scoring._matches.advance_round(match)
         data = scoring.scoreboard(match.match_id)
         assert data["round"] == 1
         assert data["scores"] == {"u1": 1, "u2": 0, "u3": 0}
@@ -154,8 +124,8 @@ class TestScoringService:
         scoring, match, turn = _scoring_setup(["u1", "u2"])
         _finish_turn(turn, secret=6, values=[6])
         scoring.apply_turn(turn, match)
-        scoring._matches.advance_round(match.match_id)
-        scoring._matches.finish_round(match.match_id)
+        scoring._matches.advance_round(match)
+        scoring._matches.finish_round(match)
         result = scoring.result(match.match_id)
         assert result["winner_id"] == "u1"
 
@@ -176,9 +146,9 @@ def _scoring_setup(players):
     )
     rstore.add(room)
     match = matches.create_match(room, "u1")
-    matches.initialize_match(match.match_id)
+    matches.initialize_match(match)
     match.turn_order = list(players)
-    matches.start_first_turn(match.match_id)
+    matches.start_first_turn(match)
     turn = Turn(
         turn_id="t-1",
         match_id=match.match_id,

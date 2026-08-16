@@ -99,29 +99,35 @@ class MemoryRoomStore:
             return None
         return self._rooms.get(code)
 
-    def add_player(self, code: str, player: PlayerRef) -> None:
+    def add_player(self, code: str, player: PlayerRef) -> Room | None:
         room = self._rooms.get(code)
         if room is None:
-            return
+            return None
         room.players.append(player)
         self._player_room[player.id] = code
+        return room
 
-    def remove_player(self, code: str, player_id: str) -> None:
+    def remove_player(self, code: str, player_id: str) -> Room | None:
         room = self._rooms.get(code)
         if room is None:
-            return
+            return None
         room.players = [p for p in room.players if p.id != player_id]
         self._player_room.pop(player_id, None)
+        return room
 
-    def set_creator(self, code: str, creator_id: str) -> None:
+    def set_creator(self, code: str, creator_id: str) -> Room | None:
         room = self._rooms.get(code)
-        if room is not None:
-            room.creator_id = creator_id
+        if room is None:
+            return None
+        room.creator_id = creator_id
+        return room
 
-    def set_state(self, code: str, state: str) -> None:
+    def set_state(self, code: str, state: str) -> Room | None:
         room = self._rooms.get(code)
-        if room is not None:
-            room.state = state
+        if room is None:
+            return None
+        room.state = state
+        return room
 
 
 class MemoryMatchStore:
@@ -142,6 +148,10 @@ class MemoryMatchStore:
             return None
         return self._matches.get(match_id)
 
+    def update(self, match: Match) -> None:
+        self._matches[match.match_id] = match
+        self._by_room[match.room_code] = match.match_id
+
 
 class MemoryTurnStore:
     def __init__(self) -> None:
@@ -152,3 +162,6 @@ class MemoryTurnStore:
 
     def get(self, turn_id: str) -> Turn | None:
         return self._turns.get(turn_id)
+
+    def update(self, turn: Turn) -> None:
+        self._turns[turn.turn_id] = turn
