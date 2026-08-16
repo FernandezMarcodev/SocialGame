@@ -1,7 +1,7 @@
 {
   "rewrites": [
-    { "source": "/api/(.*)", "destination": "https://socialgame-api.onrender.com/api/$1" },
-    { "source": "/uploads/(.*)", "destination": "https://socialgame-api.onrender.com/uploads/$1" },
-    { "source": "/health", "destination": "https://socialgame-api.onrender.com/health" }
+    { "source": "/api/(.*)", "destination": "https://socialgame-api-cial.onrender.com/api/$1" },
+    { "source": "/uploads/(.*)", "destination": "https://socialgame-api-cial.onrender.com/uploads/$1" },
+    { "source": "/health", "destination": "https://socialgame-api-cial.onrender.com/health" }
   ]
 }
