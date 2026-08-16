@@ -59,10 +59,6 @@ class ResetPasswordIn(BaseModel):
     new_password: str = Field(min_length=8)
 
 
-class VerifyEmailIn(BaseModel):
-    token: str
-
-
 class UpdateProfileIn(BaseModel):
     username: UsernameType | None = None
     email: EmailStr | None = None

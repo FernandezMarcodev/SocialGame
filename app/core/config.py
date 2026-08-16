@@ -18,7 +18,6 @@ class Settings(BaseSettings):
     database_url: str = ""
 
     token_ttl_seconds: int = 86400
-    verify_token_ttl_seconds: int = 86400
     reset_token_ttl_seconds: int = 3600
     max_login_attempts: int = 5
     lockout_seconds: int = 300
@@ -30,6 +29,11 @@ class Settings(BaseSettings):
     smtp_password: str = ""
     smtp_from: str = ""
     smtp_use_tls: bool = True
+
+    gmail_client_id: str = ""
+    gmail_client_secret: str = ""
+    gmail_refresh_token: str = ""
+    gmail_from: str = ""
 
     room_min_players: int = 2
     room_max_players: int = 6

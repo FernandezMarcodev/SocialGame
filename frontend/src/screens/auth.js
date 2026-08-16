@@ -97,8 +97,9 @@ export function register(view) {
     }
     busy(submitBtn, true);
     try {
-      const res = await api.register(username.value.trim(), email.value.trim(), password.value);
-      success(view, res);
+      await api.register(username.value.trim(), email.value.trim(), password.value);
+      toast('¡Cuenta creada! Ya podés iniciar sesión.', 'success');
+      navigate('/login');
     } catch (err) {
       formErr.append(errBox(err.message));
       busy(submitBtn, false);
@@ -116,48 +117,6 @@ export function register(view) {
     ),
     h('div', { class: 'auth-links' },
       h('a', { class: 'auth-link', href: '#/login', text: 'Ya tengo una cuenta' })
-    )
-  );
-}
-
-function success(view, res) {
-  const body = h('div', { class: 'auth-success' },
-    h('div', { class: 'auth-success-icon', text: '✓' }),
-    h('h2', { class: 'auth-success-title' }, '¡Casi listo!'),
-    h('p', { class: 'auth-success-desc' }, `Te enviamos un correo de verificación a ${res.email ?? 'tu cuenta'}. Confirmalo para poder iniciar sesión.`)
-  );
-
-  body.append(
-    h('button', { class: 'btn btn--glass btn--block', type: 'button', onclick: () => navigate('/login'), text: 'Ya verifiqué · Iniciar sesión' })
-  );
-
-  return mount(view, card('Revisá tu correo', null, body));
-}
-
-// ---- Verificación (enlace directo) ------------------------------------------
-
-export function verify(view, { params }) {
-  const tokenInput = textInput({ placeholder: 'Código de verificación', value: params.get('token') || '' });
-  const formErr = h('div');
-  const submitBtn = h('button', { class: 'btn btn--primary btn--block', type: 'submit', text: 'Verificar cuenta' });
-
-  async function submit() {
-    formErr.textContent = '';
-    if (!tokenInput.value) return formErr.append(errBox('Ingresá el código de verificación.'));
-    busy(submitBtn, true);
-    try {
-      await api.verifyEmail(tokenInput.value.trim());
-      toast('¡Cuenta verificada! Ya podés iniciar sesión.', 'success');
-      navigate('/login');
-    } catch (err) {
-      formErr.append(errBox(err.message));
-      busy(submitBtn, false);
-    }
-  }
-
-  return card('Verificar cuenta', 'Ingresá el código que recibiste por correo.',
-    h('form', { onsubmit: (e) => { e.preventDefault(); submit(); } },
-      field('Código', tokenInput), formErr, submitBtn
     )
   );
 }

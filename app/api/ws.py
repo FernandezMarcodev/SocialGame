@@ -5,12 +5,15 @@ dominio (B.2 del DDD) a los jugadores conectados; los mensajes entrantes del
 cliente se consumen para mantener la conexión activa.
 """
 
+import logging
+
 from fastapi import APIRouter, Query, WebSocket, WebSocketDisconnect
 
 from app.api.errors import ApiError
 from app.services.realtime_service import ConnectionManager
 
 router = APIRouter(tags=["realtime"])
+logger = logging.getLogger(__name__)
 
 
 @router.websocket("/ws")
@@ -25,6 +28,7 @@ async def websocket_endpoint(
     except ApiError:
         await websocket.close(code=4401)
         return
+    logger.info("websocket conectado: %s (id=%s)", user.username, user.id)
     await manager.connect(user.id, websocket)
     try:
         while True:

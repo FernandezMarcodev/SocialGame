@@ -24,9 +24,6 @@ def register(client: TestClient, outbox, username=USERNAME, email=EMAIL, passwor
 
 def verified_login(client: TestClient, outbox, username=USERNAME, email=EMAIL, password=PASSWORD):
     register(client, outbox, username, email, password)
-    token = extract_token(outbox.pop(0)[2])
-    resp = client.post("/api/v1/auth/verify-email", json={"token": token})
-    assert resp.status_code == 200, resp.text
     resp = client.post("/api/v1/auth/login", json={"identifier": username, "password": password})
     assert resp.status_code == 200, resp.text
     return resp.json()["access_token"]
@@ -36,15 +33,14 @@ def auth_headers(token: str) -> dict:
     return {"Authorization": f"Bearer {token}"}
 
 
-def test_register_creates_unverified_user(client, outbox):
+def test_register_creates_user(client, outbox):
     resp = register(client, outbox)
     data = resp.json()
     assert data["username"] == USERNAME
-    assert data["verified"] is False
+    assert data["verified"] is True
     assert data["email"] == EMAIL
     assert data["profile_image_url"] == "/avatars/k.svg"
-    assert len(outbox) == 1
-    assert outbox[0][0] == EMAIL
+    assert len(outbox) == 0
 
 
 def test_register_rejects_duplicate_username(client, outbox):
@@ -83,7 +79,7 @@ def test_register_rejects_weak_password(client, outbox):
     assert "password" in body["error"]["details"]
 
 
-def test_full_flow_verify_and_login_and_me(client, outbox):
+def test_full_flow_register_login_me(client, outbox):
     token = verified_login(client, outbox)
     resp = client.get("/api/v1/users/me", headers=auth_headers(token))
     assert resp.status_code == 200
@@ -91,17 +87,8 @@ def test_full_flow_verify_and_login_and_me(client, outbox):
     assert resp.json()["verified"] is True
 
 
-def test_login_rejected_until_email_verified(client, outbox):
-    register(client, outbox)
-    resp = client.post("/api/v1/auth/login", json={"identifier": USERNAME, "password": PASSWORD})
-    assert resp.status_code == 403
-    assert resp.json()["error"]["code"] == "EMAIL_NOT_VERIFIED"
-
-
 def test_login_wrong_password(client, outbox):
     register(client, outbox)
-    token = extract_token(outbox.pop(0)[2])
-    client.post("/api/v1/auth/verify-email", json={"token": token})
     resp = client.post("/api/v1/auth/login", json={"identifier": USERNAME, "password": "wrong"})
     assert resp.status_code == 401
     assert resp.json()["error"]["code"] == "INVALID_CREDENTIALS"
@@ -109,8 +96,6 @@ def test_login_wrong_password(client, outbox):
 
 def test_login_blocks_after_max_attempts(client, outbox):
     register(client, outbox)
-    token = extract_token(outbox.pop(0)[2])
-    client.post("/api/v1/auth/verify-email", json={"token": token})
     for _ in range(4):
         resp = client.post("/api/v1/auth/login", json={"identifier": USERNAME, "password": "wrong"})
         assert resp.status_code == 401
@@ -200,11 +185,5 @@ def test_reset_password_invalid_token(client, outbox):
         "/api/v1/auth/reset-password",
         json={"token": "token-invalido", "new_password": NEW_PASSWORD},
     )
-    assert resp.status_code == 400
-    assert resp.json()["error"]["code"] == "TOKEN_INVALID"
-
-
-def test_verify_email_invalid_token(client, outbox):
-    resp = client.post("/api/v1/auth/verify-email", json={"token": "token-invalido"})
     assert resp.status_code == 400
     assert resp.json()["error"]["code"] == "TOKEN_INVALID"

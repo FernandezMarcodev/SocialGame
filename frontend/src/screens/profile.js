@@ -3,7 +3,7 @@ import { h } from '../ui/dom.js';
 import { navigate } from '../router.js';
 import { api } from '../api.js';
 import { store, currentUser, saveSession, setUser } from '../store.js';
-import { avatar, pill } from '../ui/components.js';
+import { avatar } from '../ui/components.js';
 import { toast } from '../ui/toast.js';
 import { confirmSheet } from '../ui/sheet.js';
 
@@ -139,8 +139,7 @@ export function profile(view) {
       avatar(user, 88),
       h('div',
         h('h1', { class: 'profile-name' }, user?.username),
-        h('p', { class: 'profile-email' }, user?.email),
-        user?.verified ? pill('Correo verificado', 'success') : pill('Correo sin verificar', 'warning')
+        h('p', { class: 'profile-email' }, user?.email)
       )
     ),
     h('section', { class: 'profile-card' },

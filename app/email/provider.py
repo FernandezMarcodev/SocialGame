@@ -1,6 +1,11 @@
 """Proveedores de envío de correo (AD-005)."""
 
+import base64
+import json
 import smtplib
+import urllib.error
+import urllib.parse
+import urllib.request
 from email.message import EmailMessage
 from typing import Protocol
 
@@ -66,3 +71,67 @@ class SmtpEmailProvider:
                 if self._user:
                     server.login(self._user, self._password)
                 server.send_message(message)
+
+
+class GmailApiEmailProvider:
+    """Proveedor que envía por la Gmail API (HTTPS 443).
+
+    Render bloquea la salida SMTP, pero sí permite tráfico HTTPS. Usamos
+    OAuth2 (refresh token) para enviar como la cuenta configurada, sin
+    dominio propio ni App Password.
+    """
+
+    TOKEN_URL = "https://oauth2.googleapis.com/token"
+    SEND_URL = "https://gmail.googleapis.com/gmail/v1/users/me/messages/send"
+
+    def __init__(
+        self, client_id: str, client_secret: str, refresh_token: str, frm: str
+    ) -> None:
+        self._client_id = client_id
+        self._client_secret = client_secret
+        self._refresh_token = refresh_token
+        self._from = frm
+
+    def _access_token(self) -> str:
+        body = urllib.parse.urlencode(
+            {
+                "client_id": self._client_id,
+                "client_secret": self._client_secret,
+                "refresh_token": self._refresh_token,
+                "grant_type": "refresh_token",
+            }
+        ).encode("utf-8")
+        request = urllib.request.Request(
+            self.TOKEN_URL,
+            data=body,
+            headers={"Content-Type": "application/x-www-form-urlencoded"},
+            method="POST",
+        )
+        with urllib.request.urlopen(request, timeout=15) as response:
+            return json.loads(response.read().decode("utf-8"))["access_token"]
+
+    def send(self, to_email: str, subject: str, body: str) -> None:
+        message = (
+            f"From: {self._from}\r\n"
+            f"To: {to_email}\r\n"
+            f"Subject: {subject}\r\n\r\n"
+            f"{body}"
+        )
+        raw = base64.urlsafe_b64encode(message.encode("utf-8")).decode("utf-8")
+        payload = json.dumps({"raw": raw}).encode("utf-8")
+        access_token = self._access_token()
+        request = urllib.request.Request(
+            self.SEND_URL,
+            data=payload,
+            headers={
+                "Content-Type": "application/json",
+                "Authorization": f"Bearer {access_token}",
+            },
+            method="POST",
+        )
+        try:
+            with urllib.request.urlopen(request, timeout=15) as response:
+                response.read()
+        except urllib.error.HTTPError as exc:
+            detail = exc.read().decode("utf-8", "replace")
+            raise RuntimeError(f"Gmail API error {exc.code}: {detail}") from exc

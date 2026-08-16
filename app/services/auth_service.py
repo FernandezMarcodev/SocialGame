@@ -4,6 +4,7 @@ Implementa las reglas de negocio RN-001 a RN-004 y los RF-AUT-001 a 009 según
 los contratos del Apéndice B.2.1 del DDD.
 """
 
+import logging
 from typing import Callable
 from uuid import uuid4
 
@@ -20,12 +21,15 @@ from app.core.security import (
 from app.domain.avatars import avatar_url
 from app.domain.entities import Session, User, VerificationToken
 from app.email.provider import EmailProvider
-from app.services.emails import send_password_reset, send_verification
+from app.services.emails import send_password_reset
 from app.stores.base import SessionStore, UserStore, VerificationStore
 
 
 def _new_user_id() -> str:
     return "usr-" + uuid4().hex[:10]
+
+
+logger = logging.getLogger(__name__)
 
 
 class AuthService:
@@ -73,45 +77,7 @@ class AuthService:
             created_at=self._now(),
         )
         self._users.add(user)
-        self.issue_verification(user)
         return UserOut.model_validate(user)
-
-    def issue_verification(self, user: User) -> str:
-        """Emite un token de verificación y lo envía por correo. Devuelve el token."""
-        token = generate_token()
-        self._verifications.add(
-            VerificationToken(
-                token_hash=hash_token(token),
-                user_id=user.id,
-                kind="verify",
-                expires_at=self._now() + self._settings.verify_token_ttl_seconds * 1000,
-            )
-        )
-        send_verification(self._emails, user, token)
-        return token
-
-    def verify_email(self, token: str) -> None:
-        verification = self._verifications.get(hash_token(token))
-        if verification is None or verification.used or verification.kind != "verify":
-            raise ApiError(400, "TOKEN_INVALID", "El token no es válido.")
-        if verification.expires_at <= self._now():
-            raise ApiError(400, "TOKEN_EXPIRED", "El token ha expirado.")
-        user = self._users.get_by_id(verification.user_id)
-        if user is None:
-            raise ApiError(400, "TOKEN_INVALID", "El token no es válido.")
-        if user.verified:
-            raise ApiError(400, "ALREADY_VERIFIED", "El correo ya fue verificado.")
-        user.verified = True
-        self._users.update(user)
-        self._verifications.mark_used(verification.token_hash)
-
-    def resend_verification(self, email: str) -> None:
-        user = self._users.get_by_email(email)
-        if user is None:
-            return
-        if user.verified:
-            raise ApiError(400, "ALREADY_VERIFIED", "El correo ya fue verificado.")
-        self.issue_verification(user)
 
     def login(self, identifier: str, password: str) -> TokenOut:
         user = (
@@ -143,10 +109,6 @@ class AuthService:
                 )
             self._users.update(user)
             raise ApiError(401, "INVALID_CREDENTIALS", "Credenciales inválidas.")
-        if not user.verified:
-            raise ApiError(
-                403, "EMAIL_NOT_VERIFIED", "Debes verificar tu correo electrónico."
-            )
         user.failed_attempts = 0
         user.blocked_until = None
         self._users.update(user)
@@ -159,7 +121,8 @@ class AuthService:
                 created_at=now,
                 expires_at=expires_at,
             )
-        )
+         )
+        logger.info("login exitoso: %s (id=%s)", user.username, user.id)
         return TokenOut(
             access_token=token,
             expires_at=expires_at,

@@ -48,18 +48,6 @@ def build_auth(settings, clock):
     return auth
 
 
-def test_verify_token_expires():
-    settings = Settings(_env_file=None, verify_token_ttl_seconds=1)
-    clock = FakeClock(1000)
-    auth = build_auth(settings, clock)
-    user = auth._users.get_by_id("usr-test")
-    token = auth.issue_verification(user)
-    clock.advance(2000)
-    with pytest.raises(ApiError) as exc:
-        auth.verify_email(token)
-    assert exc.value.code == "TOKEN_EXPIRED"
-
-
 def test_session_expires():
     settings = Settings(_env_file=None, token_ttl_seconds=1)
     clock = FakeClock(1000)

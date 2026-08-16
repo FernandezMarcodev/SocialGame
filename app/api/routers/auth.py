@@ -11,7 +11,6 @@ from app.api.schemas import (
     ResetPasswordIn,
     TokenOut,
     UserOut,
-    VerifyEmailIn,
 )
 from app.services.auth_service import AuthService
 
@@ -21,20 +20,6 @@ router = APIRouter(prefix="/auth", tags=["auth"])
 @router.post("/register", response_model=UserOut, status_code=201)
 def register(payload: RegisterIn, auth: AuthService = Depends(get_auth_service)) -> UserOut:
     return auth.register(payload.username, payload.email, payload.password)
-
-
-@router.post("/verify-email", status_code=200)
-def verify_email(payload: VerifyEmailIn, auth: AuthService = Depends(get_auth_service)) -> dict:
-    auth.verify_email(payload.token)
-    return {}
-
-
-@router.post("/resend-verification", status_code=200)
-def resend_verification(
-    payload: ForgotPasswordIn, auth: AuthService = Depends(get_auth_service)
-) -> dict:
-    auth.resend_verification(payload.email)
-    return {}
 
 
 @router.post("/login", response_model=TokenOut, status_code=200)

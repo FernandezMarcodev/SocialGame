@@ -9,7 +9,6 @@ import os
 from app.api.errors import ApiError
 from app.api.schemas import UserOut
 from app.domain.entities import User
-from app.services.auth_service import AuthService
 from app.stores.base import UserStore
 
 ALLOWED_AVATAR_TYPES: dict[str, str] = {
@@ -24,12 +23,10 @@ class UsersService:
     def __init__(
         self,
         users: UserStore,
-        auth_service: AuthService,
         upload_dir: str = "uploads",
         max_avatar_bytes: int = 2_000_000,
     ) -> None:
         self._users = users
-        self._auth = auth_service
         self._upload_dir = upload_dir
         self._max_avatar_bytes = max_avatar_bytes
 
@@ -48,8 +45,6 @@ class UsersService:
                     409, "EMAIL_TAKEN", "El correo electrónico ya se encuentra registrado."
                 )
             user.email = email
-            user.verified = False
-            self._auth.issue_verification(user)
         self._users.update(user)
         return UserOut.model_validate(user)
 

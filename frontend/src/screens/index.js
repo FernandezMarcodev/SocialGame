@@ -6,13 +6,13 @@ import { navigate } from '../router.js';
 import { on } from '../events.js';
 
 import { landing } from './landing.js';
-import { login, register, forgot, reset, verify } from './auth.js';
+import { login, register, forgot, reset } from './auth.js';
 import { room } from './room.js';
 import { match } from './match.js';
 import { profile } from './profile.js';
 import { notFound } from './notfound.js';
 
-export { landing, login, register, forgot, reset, verify, room, match, profile, notFound };
+export { landing, login, register, forgot, reset, room, match, profile, notFound };
 
 let listenersAttached = false;
 

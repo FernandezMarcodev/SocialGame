@@ -46,7 +46,7 @@ def test_update_username_taken(client: TestClient, outbox):
     assert resp.json()["error"]["code"] == "USERNAME_TAKEN"
 
 
-def test_update_email_sets_unverified(client: TestClient, outbox):
+def test_update_email_keeps_verified(client: TestClient, outbox):
     token = verified_login(client, outbox)
     resp = client.patch(
         "/api/v1/users/me",
@@ -56,9 +56,7 @@ def test_update_email_sets_unverified(client: TestClient, outbox):
     assert resp.status_code == 200
     data = resp.json()
     assert data["email"] == "nuevo@example.com"
-    assert data["verified"] is False
-    assert len(outbox) == 1
-    assert outbox[0][0] == "nuevo@example.com"
+    assert data["verified"] is True
 
 
 def test_update_email_taken(client: TestClient, outbox):

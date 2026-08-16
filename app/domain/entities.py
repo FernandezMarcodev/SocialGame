@@ -9,7 +9,7 @@ class User:
     username: str
     email: str
     password_hash: str
-    verified: bool = False
+    verified: bool = True
     profile_image_url: str = ""
     created_at: int = 0
     failed_attempts: int = 0

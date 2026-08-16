@@ -77,8 +77,6 @@ export const api = {
   // Auth
   register: (username, email, password) =>
     call('/api/v1/auth/register', { method: 'POST', body: { username, email, password }, auth: false }),
-  verifyEmail: (token) => call('/api/v1/auth/verify-email', { method: 'POST', body: { token }, auth: false }),
-  resendVerification: (email) => call('/api/v1/auth/resend-verification', { method: 'POST', body: { email }, auth: false }),
   login: (identifier, password) => call('/api/v1/auth/login', { method: 'POST', body: { identifier, password }, auth: false }),
   logout: () => call('/api/v1/auth/logout', { method: 'POST' }),
   changePassword: (current_password, new_password) =>

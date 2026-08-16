@@ -1,5 +1,6 @@
 """Punto de entrada de la API del juego "Es un 10 pero…"."""
 
+import logging
 import os
 
 from fastapi import APIRouter, FastAPI
@@ -15,7 +16,11 @@ from app.api.errors import (
 from app.api.routers import auth, matches, modalities, rooms, scoring, turns, users
 from app.api.ws import router as realtime_router
 from app.core.config import Settings, get_settings
-from app.email.provider import ConsoleEmailProvider, SmtpEmailProvider
+from app.email.provider import (
+    ConsoleEmailProvider,
+    GmailApiEmailProvider,
+    SmtpEmailProvider,
+)
 from app.services.auth_service import AuthService
 from app.services.match_service import MatchService
 from app.services.realtime_service import ConnectionManager, EventBus, RealtimeService
@@ -72,6 +77,13 @@ def create_app(
                 frm=settings.smtp_from,
                 use_tls=settings.smtp_use_tls,
             )
+        elif settings.email_provider == "gmail" and settings.gmail_refresh_token:
+            email_provider = GmailApiEmailProvider(
+                client_id=settings.gmail_client_id,
+                client_secret=settings.gmail_client_secret,
+                refresh_token=settings.gmail_refresh_token,
+                frm=settings.gmail_from,
+            )
         else:
             email_provider = ConsoleEmailProvider(outbox)
     else:
@@ -98,7 +110,6 @@ def create_app(
     )
     users_service = UsersService(
         users=user_store,
-        auth_service=auth_service,
         upload_dir=settings.upload_dir,
         max_avatar_bytes=settings.max_avatar_bytes,
     )
@@ -157,5 +168,10 @@ def create_app(
 
     return app
 
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+)
 
 app = create_app()
