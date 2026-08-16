@@ -56,13 +56,13 @@ class SmtpEmailProvider:
         message.set_content(body)
 
         if self._use_tls:
-            with smtplib.SMTP(self._host, self._port) as server:
+            with smtplib.SMTP(self._host, self._port, timeout=15) as server:
                 server.starttls()
                 if self._user:
                     server.login(self._user, self._password)
                 server.send_message(message)
         else:
-            with smtplib.SMTP_SSL(self._host, self._port) as server:
+            with smtplib.SMTP_SSL(self._host, self._port, timeout=15) as server:
                 if self._user:
                     server.login(self._user, self._password)
                 server.send_message(message)
