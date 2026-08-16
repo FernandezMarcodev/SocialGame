@@ -21,10 +21,8 @@ export function profile(view) {
   const email = h('input', { class: 'input', type: 'email', value: user?.email || '' });
 
   const saveBtn = h('button', { class: 'btn btn--primary btn--block', type: 'submit', text: 'Guardar cambios' });
-  const saveMsg = h('p', { class: 'form-success' });
 
   async function save() {
-    saveMsg.textContent = '';
     if (!username.value.trim()) return toast('El nombre de usuario no puede quedar vacío.', 'info');
     saveBtn.disabled = true;
     saveBtn.classList.add('btn--loading');
@@ -35,7 +33,6 @@ export function profile(view) {
       });
       setUser(updated);
       toast('Perfil actualizado.', 'success');
-      saveMsg.textContent = 'Si cambiaste tu correo, recordá verificarlo de nuevo.';
     } catch (err) {
       toast(err.message, 'error');
     } finally {
@@ -161,7 +158,6 @@ export function profile(view) {
       h('form', { onsubmit: (e) => { e.preventDefault(); save(); } },
         field('Nombre de usuario', username),
         field('Correo electrónico', email),
-        saveMsg,
         saveBtn
       )
     ),

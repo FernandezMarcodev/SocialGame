@@ -1,5 +1,5 @@
-// Pantallas de autenticación: login, registro, recuperación, verificación.
-import { h, mount } from '../ui/dom.js';
+// Pantallas de autenticación: login, registro, recuperación de contraseña.
+import { h } from '../ui/dom.js';
 import { navigate } from '../router.js';
 import { api } from '../api.js';
 import { saveSession } from '../store.js';
