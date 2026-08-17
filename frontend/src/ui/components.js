@@ -105,6 +105,20 @@ export function spinner(text = 'Cargando…') {
   return h('div', { class: 'spinner-wrap' }, h('span', { class: 'spinner' }), h('span', { class: 'spinner-text', text }));
 }
 
+// --- Pie de página global ---
+export function globalFooter() {
+  return h('footer', { class: 'global-footer' },
+    h('div', { class: 'global-footer-inner' },
+      h('span', { class: 'global-footer-label', text: 'Desarrollado por' }),
+      h('a', { class: 'global-footer-name', href: 'https://github.com/FernandezMarcodev', target: '_blank', rel: 'noopener', text: 'FernandezMarcodev' }),
+      h('span', { class: 'global-footer-separator', text: '·' }),
+      h('a', { class: 'global-footer-link', href: 'https://github.com/FernandezMarcodev/SocialGame', target: '_blank', rel: 'noopener', text: 'GitHub' }),
+      h('span', { class: 'global-footer-separator', text: '·' }),
+      h('a', { class: 'global-footer-link', href: 'https://linkedin.com/in/fernandezmarcodev', target: '_blank', rel: 'noopener', text: 'LinkedIn' })
+    )
+  );
+}
+
 // --- Barra de progreso animada (cuenta regresiva de turno) ---
 export function progressBar() {
   const node = h('div', { class: 'progress' }, h('div', { class: 'progress-fill' }));

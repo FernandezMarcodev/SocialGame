@@ -1,6 +1,6 @@
-// Registro de pantallas + shell (barra superior persistente).
+// Registro de pantallas + shell (barra superior persistente + pie global).
 import { h, mount, clear } from '../ui/dom.js';
-import { avatar } from '../ui/components.js';
+import { avatar, globalFooter } from '../ui/components.js';
 import { isAuthed, store } from '../store.js';
 import { navigate } from '../router.js';
 import { on } from '../events.js';
@@ -31,7 +31,8 @@ export function shell(root, ctx) {
       h('div', { class: 'topbar-right' }, isAuthed() ? avatarBtn() : h('a', { class: 'topbar-link', href: '#/howto', text: 'Cómo se juega', onclick: (e) => { e.preventDefault(); navigate('/howto'); } }))
     );
     const view = h('main', { id: 'view', class: 'view' });
-    mount(root, h('div', { class: 'app-shell' }, header, view));
+    const footer = globalFooter();
+    mount(root, h('div', { class: 'app-shell' }, header, view, footer));
 
     if (!listenersAttached) {
       listenersAttached = true;
