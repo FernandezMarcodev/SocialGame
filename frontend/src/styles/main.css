@@ -994,16 +994,17 @@ body::after {
 }
 
 .dash-ghost {
-  display: none;
-  grid-template-columns: 1fr 1fr;
-  gap: 20px;
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 16px;
   max-width: 720px;
   margin: 0 auto;
 }
 
 @media (min-width: 768px) {
   .dash-ghost {
-    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
   }
 }
 
