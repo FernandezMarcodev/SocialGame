@@ -37,8 +37,8 @@ class Settings(BaseSettings):
 
     room_min_players: int = 2
     room_max_players: int = 6
-    author_timeout_seconds: int = 60
-    voting_timeout_seconds: int = 30
+    author_timeout_seconds: int = 90
+    voting_timeout_seconds: int = 45
 
     upload_dir: str = "uploads"
     max_avatar_bytes: int = 2_000_000

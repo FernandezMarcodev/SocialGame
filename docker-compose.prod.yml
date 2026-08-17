@@ -7,10 +7,16 @@
 #
 # También sirve tal cual en plataformas que corren la imagen directamente:
 # definí DATABASE_URL (y las vars de email) como variables de entorno.
+# Para Redis en producción, definí REDIS_URL en el entorno (ej. redis://user:pass@host:6379/0)
 
 services:
   # El servicio de Postgres local queda anulado (no hace nada, no consume DB).
   db:
+    image: alpine:3.20
+    entrypoint: ["true"]
+
+  # Redis local también anulado; usar REDIS_URL del entorno para Redis gestionado.
+  redis:
     image: alpine:3.20
     entrypoint: ["true"]
 
@@ -19,3 +25,4 @@ services:
     environment:
       # En producción la URL completa siempre viene del .env / entorno.
       DATABASE_URL: ${DATABASE_URL}
+      REDIS_URL: ${REDIS_URL}

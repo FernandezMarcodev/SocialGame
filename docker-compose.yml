@@ -15,6 +15,19 @@ services:
       retries: 10
     restart: unless-stopped
 
+  redis:
+    image: redis:7-alpine
+    container_name: es10p-redis
+    command: redis-server --appendonly yes
+    volumes:
+      - es10p_redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    restart: unless-stopped
+
   es10p-api:
     build: .
     container_name: es10p-api
@@ -23,12 +36,15 @@ services:
       # Si DATABASE_URL está en el .env (BD gestionada externa), se usa tal cual.
       # Si no, se arma con las variables POSTGRES_* para el contenedor local.
       DATABASE_URL: ${DATABASE_URL:-postgresql://${POSTGRES_USER:-es10p}:${POSTGRES_PASSWORD:-es10p}@db:5432/${POSTGRES_DB:-es10p}}
+      REDIS_URL: redis://redis:6379/0
     ports:
       - "${PORT:-8000}:8000"
     volumes:
       - ./uploads:/app/uploads
     depends_on:
       db:
+        condition: service_healthy
+      redis:
         condition: service_healthy
     restart: unless-stopped
 
@@ -44,3 +60,4 @@ services:
 
 volumes:
   es10p_db_data:
+  es10p_redis_data:

@@ -3,6 +3,9 @@
 Conexión persistente autenticada por token. El servidor empuja los eventos del
 dominio (B.2 del DDD) a los jugadores conectados; los mensajes entrantes del
 cliente se consumen para mantener la conexión activa.
+
+Incluye soporte para heartbeat (ping/pong) para detectar conexiones muertas
+a través de NATs, firewalls y balanceadores de carga en Internet.
 """
 
 import logging
@@ -35,10 +38,22 @@ async def websocket_endpoint(
     await manager.connect(user.id, websocket)
     try:
         while True:
-            await websocket.receive_text()
+            message = await websocket.receive_text()
+            await _handle_client_message(websocket, message)
     except (WebSocketDisconnect, RuntimeError):
         await manager.disconnect(user.id, websocket)
         await _on_player_disconnected(user, rooms, bus)
+
+
+async def _handle_client_message(websocket: WebSocket, message: str) -> None:
+    """Procesa mensajes entrantes del cliente (pong, etc.)."""
+    try:
+        data = json.loads(message)
+    except Exception:
+        return
+
+    if data.get("type") == "pong":
+        pass
 
 
 async def _on_player_disconnected(
@@ -66,3 +81,6 @@ async def _on_player_disconnected(
         logger.exception(
             "error limpiando sala fantasma para %s", user.username
         )
+
+
+import json

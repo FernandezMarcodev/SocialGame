@@ -6,6 +6,7 @@ import os
 from fastapi import APIRouter, FastAPI
 from fastapi.exceptions import RequestValidationError
 from fastapi.staticfiles import StaticFiles
+import redis.asyncio as redis
 
 from app.api.errors import (
     ApiError,
@@ -49,6 +50,11 @@ def create_app(
         description="Videojuego multijugador por turnos — API REST",
         version=settings.app_version,
     )
+
+    redis_client = None
+    redis_url = os.getenv("REDIS_URL")
+    if redis_url:
+        redis_client = redis.from_url(redis_url, decode_responses=True)
 
     if settings.database_url:
         from app.stores.database import (
@@ -95,11 +101,22 @@ def create_app(
         turn_store = MemoryTurnStore()
         email_provider = ConsoleEmailProvider(outbox)
 
-    event_bus = EventBus()
-    connection_manager = ConnectionManager()
+    event_bus = EventBus(redis_client=redis_client)
+    connection_manager = ConnectionManager(redis_client=redis_client)
     realtime_service = RealtimeService(
-        bus=event_bus, manager=connection_manager, rooms=room_store
+        bus=event_bus, manager=connection_manager, rooms=room_store, matches=match_store
     )
+
+    async def startup():
+        await event_bus.start()
+
+    async def shutdown():
+        await event_bus.stop()
+        if redis_client:
+            await redis_client.close()
+
+    app.add_event_handler("startup", startup)
+    app.add_event_handler("shutdown", shutdown)
 
     auth_service = AuthService(
         settings=settings,
@@ -120,6 +137,7 @@ def create_app(
         matches=match_service,
         turns=turn_store,
         scoring=scoring_service,
+        bus=event_bus,
     )
     rooms_service = RoomService(
         settings=settings, rooms=room_store, matches=match_service, turns=turn_service

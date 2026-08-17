@@ -17,6 +17,7 @@ from app.core.config import Settings
 from app.core.security import utcnow_ms
 from app.domain.entities import Match, Turn, Vote
 from app.services.match_service import MatchService
+from app.services.realtime_service import EventBus
 from app.services.scoring_service import ScoringService
 from app.stores.base import TurnStore
 
@@ -34,12 +35,14 @@ class TurnService:
         matches: MatchService,
         turns: TurnStore,
         scoring: ScoringService,
+        bus: EventBus | None = None,
         now: Callable[[], int] | None = None,
     ) -> None:
         self._settings = settings
         self._matches = matches
         self._turns = turns
         self._scoring = scoring
+        self._bus = bus
         self._now = now or utcnow_ms
 
     # ------------------------------------------------------------------ #
@@ -87,28 +90,80 @@ class TurnService:
         self._matches.start_first_turn(match)
         return self._create_turn(match)
 
-    def settle_expired(self, match_id: str) -> Match:
-        """Cierra turnos vencidos de forma diferida (RF-TUR-005/008)."""
+    async def settle_expired(self, match_id: str) -> Match:
+        """Cierra turnos vencidos de forma diferida (RF-TUR-005/008).
+
+        Si un turno se expiró (fase de autor o votación), se finaliza y avanza
+        al siguiente, publicando eventos de tiempo real para notificar a los
+        jugadores (RF-COM-011). Esto evita que los clientes queden bloqueados
+        con un turno vencido sin saberlo.
+        """
         match = self._matches.get_match(match_id)
         if match.state != "in_progress" or match.current_turn is None:
             return match
         turn = self.get_turn(match.current_turn)
         now = self._now()
+        closed = False
         if turn.state == "active" and now > turn.expires_at:
-            self._discard(turn)
-            self._advance(match)
+            await self._close_and_advance(match, turn, expired_from="active")
+            closed = True
         elif turn.state == "voting" and now > turn.voting_ends_at:
+            await self._close_and_advance(match, turn, expired_from="voting")
+            closed = True
+        return self._matches.get_match(match_id)
+
+    async def _close_and_advance(self, match: Match, turn: Turn, expired_from: str) -> None:
+        """Cierra un turno vencido (discard/finalize + advance) y notifica a la sala."""
+        previous_state = turn.state
+        if previous_state == "active":
+            self._discard(turn)
+        else:
             self._finalize(turn, match)
-            self._advance(match)
         self._turns.update(turn)
         self._matches.update(match)
-        return self._matches.get_match(match_id)
+        await self._notify_turn_closed(match, turn, previous_state)
+        self._advance(match)
+        await self._notify_turn_advanced(match, turn)
+
+    async def _notify_turn_closed(self, match: Match, turn: Turn, turn_was: str) -> None:
+        """Notifica a la sala que un turno venció sin acción del jugador."""
+        if self._bus is None:
+            return
+        await self._bus.publish(
+            "turn.expired",
+            {
+                "match_id": match.match_id,
+                "turn_id": turn.turn_id,
+                "previous_state": turn_was,
+                "state": turn.state,
+                "author_id": turn.author_id,
+            },
+        )
+
+    async def _notify_turn_advanced(self, match: Match, turn: Turn) -> None:
+        """Notifica a la sala que el turno avanzó al siguiente autor."""
+        if self._bus is None:
+            return
+        await self._bus.publish(
+            "turn.advanced",
+            {
+                "match_id": match.match_id,
+                "previous_turn_id": turn.turn_id,
+                "current_turn_id": match.current_turn,
+                "next_author_id": match.turn_order[match.turn_index]
+                if match.turn_index < len(match.turn_order)
+                else None,
+                "phase": "voting" if turn.state == "voting" else "authoring",
+            },
+        )
 
     # ------------------------------------------------------------------ #
     # Acciones del autor y votantes
     # ------------------------------------------------------------------ #
 
-    def submit_phrase(self, user_id: str, match_id: str, phrase: str, secret_score: int) -> Turn:
+    async def submit_phrase(
+        self, user_id: str, match_id: str, phrase: str, secret_score: int
+    ) -> Turn:
         """Registra frase y puntaje secreto y abre la votación (RF-TUR-003/004/006)."""
         match = self._matches.get_match(match_id)
         turn = self._active_turn(match)
@@ -116,8 +171,7 @@ class TurnService:
             raise ApiError(409, "TURN_FINISHED", "No hay un turno en curso.")
         now = self._now()
         if turn.state == "active" and now > turn.expires_at:
-            self._discard(turn)
-            self._advance(match)
+            await self._close_and_advance(match, turn, expired_from="active")
             raise ApiError(409, "TURN_EXPIRED", "El tiempo del autor expiró.")
         if turn.state != "active":
             raise ApiError(409, "ALREADY_SUBMITTED", "La frase ya fue registrada.")
@@ -134,7 +188,7 @@ class TurnService:
         self._turns.update(turn)
         return turn
 
-    def submit_vote(self, user_id: str, match_id: str, score: int) -> Turn:
+    async def submit_vote(self, user_id: str, match_id: str, score: int) -> Turn:
         """Registra el voto de un participante (RF-TUR-007)."""
         match = self._matches.get_match(match_id)
         turn = self._active_turn(match)
@@ -142,8 +196,7 @@ class TurnService:
             raise ApiError(409, "TURN_FINISHED", "No hay un turno en curso.")
         now = self._now()
         if turn.state == "voting" and now > turn.voting_ends_at:
-            self._finalize(turn, match)
-            self._advance(match)
+            await self._close_and_advance(match, turn, expired_from="voting")
             raise ApiError(409, "TURN_FINISHED", "El tiempo de votación expiró.")
         if turn.state != "voting":
             raise ApiError(409, "NOT_VOTING", "La votación no está abierta.")
@@ -160,6 +213,8 @@ class TurnService:
         if len(turn.votes) >= voters:
             self._finalize(turn, match)
             self._advance(match)
+            await self._notify_turn_closed(match, turn, "voting")
+            await self._notify_turn_advanced(match, turn)
         self._turns.update(turn)
         self._matches.update(match)
         return turn
