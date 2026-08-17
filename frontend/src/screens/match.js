@@ -32,7 +32,7 @@ export function match(v, { seg }) {
 
 function subscribeRT() {
   const handler = () => {
-    if (M && M.state !== 'finished') pollNow();
+    if (M && M.state !== 'finished') poll();
   };
   on('rt:turn.expired', handler);
   on('rt:turn.advanced', handler);
