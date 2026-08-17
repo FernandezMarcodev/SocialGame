@@ -42,7 +42,7 @@ async def websocket_endpoint(
             await _handle_client_message(websocket, message)
     except (WebSocketDisconnect, RuntimeError):
         await manager.disconnect(user.id, websocket)
-        await _on_player_disconnected(user, rooms, bus)
+        await _on_player_disconnected(user, rooms, bus, manager)
 
 
 async def _handle_client_message(websocket: WebSocket, message: str) -> None:
@@ -57,15 +57,26 @@ async def _handle_client_message(websocket: WebSocket, message: str) -> None:
 
 
 async def _on_player_disconnected(
-    user, rooms: RoomService, bus: EventBus
+    user, rooms: RoomService, bus: EventBus, manager: ConnectionManager
 ) -> None:
     """Limpieza automática de salas fantasma (RF-COM-010).
 
     Cuando un jugador se desconecta del WebSocket sin abandonar la sala
     explícitamente, se elimina de su sala actual. Si la sala queda vacía
     se borra; si quedan jugadores se les notifica vía WebSocket.
+
+    SOLO limpia si el usuario no tiene OTRA conexión WebSocket activa.
     """
     try:
+        # Verificar si el usuario tiene otras conexiones WebSocket activas
+        other_connections = manager.get_user_connections(user.id)
+        if other_connections:
+            logger.debug(
+                "usuario %s tiene %d conexiones WS activas, no limpio sala fantasma",
+                user.username, len(other_connections)
+            )
+            return
+
         room = rooms.force_disconnect(user)
         if room is not None:
             out = rooms.serialize(room)

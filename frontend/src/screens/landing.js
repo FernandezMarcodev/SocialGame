@@ -70,7 +70,9 @@ function dashboard(view) {
     ),
     h('section', { class: 'dash-grid' },
       createCard(),
-      joinCard(),
+      joinCard()
+    ),
+    h('section', { class: 'dash-ghost' },
       ghostCard()
     )
   );

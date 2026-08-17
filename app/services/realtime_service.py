@@ -77,7 +77,8 @@ class ConnectionManager:
                     try:
                         await websocket.send_json({"type": "ping"})
                     except Exception:
-                        break
+                        # No romper el loop; solo log y reintentar en próximo ciclo
+                        logger.debug("Heartbeat ping failed, will retry")
             except asyncio.CancelledError:
                 pass
 
@@ -107,6 +108,10 @@ class ConnectionManager:
 
     def get_connected_users(self) -> list[str]:
         return list(self._connections.keys())
+
+    def get_user_connections(self, user_id: str) -> list[WebSocket]:
+        """Devuelve las conexiones WebSocket activas de un usuario."""
+        return list(self._connections.get(user_id, set()))
 
 
 class EventBus:

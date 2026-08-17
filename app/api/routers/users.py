@@ -37,27 +37,28 @@ async def update_avatar(
     return users.update_avatar(user, content, file.content_type)
 
 
-async def _get_user_from_token_or_header(
+async def _get_user_from_token(
     token: str | None = Query(default=None),
     auth_service: AuthService = Depends(lambda r: r.app.state.auth_service),
-    user=Depends(get_current_user),
-):
-    """Obtiene usuario desde Authorization header o query param token (para <img>)."""
+) -> UserOut:
+    """Obtiene usuario desde query param token (para <img src>)."""
     if token:
         try:
             return auth_service.resolve_access_token(token)
         except ApiError:
             pass
-    return user
+    # Si no hay token válido en query, devolvemos 401
+    from fastapi import HTTPException
+    raise HTTPException(status_code=401, detail="Token inválido")
 
 
 @router.get("/me/avatar/image")
 async def get_avatar_image(
-    user=Depends(_get_user_from_token_or_header),
+    user=Depends(_get_user_from_token),
 ) -> Response:
     """Sirve la imagen de avatar desde la base de datos (avatar_storage=database).
 
-    Acepta token en Authorization header o query param `token` para <img src="">.
+    Acepta token en query param `token` para <img src="">.
     """
     if not user.avatar_data or not user.avatar_content_type:
         return Response(status_code=404)
