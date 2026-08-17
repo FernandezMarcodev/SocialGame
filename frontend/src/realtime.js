@@ -3,13 +3,17 @@
 // Conexión persistente autenticada con el token de sesión. Los eventos
 // recibidos se despachan en el bus global como `rt:<evento>` (p. ej.
 // `rt:match.started`), con reconexión automática con backoff.
+// Incluye heartbeat (ping/pong) para mantener la conexión viva a través
+// de NATs, firewalls y balanceadores de carga en Internet.
 import { store } from './store.js';
 import { emit } from './events.js';
 
 let ws = null;
 let shouldReconnect = false;
-let retries = 0;
+let retries = 0
 let reconnectTimer = null;
+let pongTimeout = null;
+const PONG_TIMEOUT_MS = 10000;
 
 export function connectRT() {
   if (!store.session?.token || ws) return;
@@ -20,6 +24,7 @@ export function connectRT() {
   ws.onopen = () => {
     retries = 0;
     emit('rt:open');
+    startPongMonitor();
   };
 
   ws.onmessage = (e) => {
@@ -29,11 +34,21 @@ export function connectRT() {
     } catch {
       return;
     }
+    if (msg?.type === 'ping') {
+      sendPong();
+      return;
+    }
+    if (msg?.type === 'pong') {
+      clearTimeout(pongTimeout);
+      startPongMonitor();
+      return;
+    }
     if (msg?.event) emit(`rt:${msg.event}`, msg.data);
   };
 
   ws.onclose = () => {
     ws = null;
+    clearTimeout(pongTimeout);
     scheduleReconnect();
   };
 
@@ -42,12 +57,28 @@ export function connectRT() {
   };
 }
 
+function sendPong() {
+  if (ws && ws.readyState === WebSocket.OPEN) {
+    ws.send(JSON.stringify({ type: 'pong' }));
+  }
+}
+
+function startPongMonitor() {
+  clearTimeout(pongTimeout);
+  pongTimeout = setTimeout(() => {
+    if (ws) {
+      ws.close();
+    }
+  }, PONG_TIMEOUT_MS);
+}
+
 export function disconnectRT() {
   shouldReconnect = false;
   if (reconnectTimer) {
     clearTimeout(reconnectTimer);
     reconnectTimer = null;
   }
+  clearTimeout(pongTimeout);
   if (ws) {
     ws.onclose = null;
     ws.close();
