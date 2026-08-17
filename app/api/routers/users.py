@@ -1,12 +1,14 @@
 """Routers del módulo de usuarios (Apéndice B.2.2)."""
 
-from fastapi import APIRouter, Depends, File, Response, UploadFile
+from fastapi import APIRouter, Depends, File, Query, Response, UploadFile
 
 from app.api.deps import get_current_user, get_event_bus, get_rooms_service, get_users_service
 from app.api.schemas import GhostDisconnectOut, UpdateProfileIn, UserOut
 from app.services.room_service import RoomService
 from app.services.realtime_service import EventBus
 from app.services.users_service import UsersService
+from app.api.errors import ApiError
+from app.services.auth_service import AuthService
 
 router = APIRouter(prefix="/users", tags=["users"])
 
@@ -35,11 +37,28 @@ async def update_avatar(
     return users.update_avatar(user, content, file.content_type)
 
 
+async def _get_user_from_token_or_header(
+    token: str | None = Query(default=None),
+    auth_service: AuthService = Depends(lambda r: r.app.state.auth_service),
+    user=Depends(get_current_user),
+):
+    """Obtiene usuario desde Authorization header o query param token (para <img>)."""
+    if token:
+        try:
+            return auth_service.resolve_access_token(token)
+        except ApiError:
+            pass
+    return user
+
+
 @router.get("/me/avatar/image")
 async def get_avatar_image(
-    user=Depends(get_current_user),
+    user=Depends(_get_user_from_token_or_header),
 ) -> Response:
-    """Sirve la imagen de avatar desde la base de datos (avatar_storage=database)."""
+    """Sirve la imagen de avatar desde la base de datos (avatar_storage=database).
+
+    Acepta token en Authorization header o query param `token` para <img src="">.
+    """
     if not user.avatar_data or not user.avatar_content_type:
         return Response(status_code=404)
     return Response(content=user.avatar_data, media_type=user.avatar_content_type)

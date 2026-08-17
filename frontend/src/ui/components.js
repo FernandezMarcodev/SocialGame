@@ -11,8 +11,18 @@ export function avatar(user, size = 44, { crown = false } = {}) {
       height: `${size}px`,
       fontSize: `${Math.round(size * 0.44)}px`,
     };
+    // Si es el endpoint de avatar en DB, agregar token como query param para <img>
+    let imgSrc = url;
+    if (url.startsWith('/api/v1/users/me/avatar/image')) {
+      const token = (typeof window !== 'undefined' && window.store?.session?.token) 
+        || (typeof sessionStorage !== 'undefined' && sessionStorage.getItem('es10p.active') 
+            && JSON.parse(localStorage.getItem('es10p.sessions') || '{}')[sessionStorage.getItem('es10p.active')]?.token);
+      if (token) {
+        imgSrc = `${url}?token=${encodeURIComponent(token)}`;
+      }
+    }
     return h('div', { class: 'avatar avatar--img', style, title: user?.username },
-      h('img', { class: 'avatar-img', src: url, alt: user?.username || '' }),
+      h('img', { class: 'avatar-img', src: imgSrc, alt: user?.username || '' }),
       crown ? h('span', { class: 'avatar-crown', text: '♛' }) : null
     );
   }
