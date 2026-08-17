@@ -15,7 +15,7 @@ from typing import Iterator, Optional
 
 from sqlalchemy import BigInteger, Boolean, Integer, String, create_engine, select
 from sqlalchemy.orm import DeclarativeBase, mapped_column, sessionmaker
-from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy.dialects.postgresql import JSONB, BYTEA
 
 from app.domain.entities import (
     Match,
@@ -85,6 +85,8 @@ class UserModel(Base):
     password_hash = mapped_column(String, nullable=False)
     verified = mapped_column(Boolean, default=False)
     profile_image_url = mapped_column(String, default="")
+    avatar_data = mapped_column(BYTEA, nullable=True)  # imagen en base64/bytes para almacenamiento en DB
+    avatar_content_type = mapped_column(String, nullable=True)  # image/png, image/jpeg, etc.
     created_at = mapped_column(BigInteger, default=0)
     failed_attempts = mapped_column(Integer, default=0)
     blocked_until = mapped_column(BigInteger, nullable=True)
@@ -98,6 +100,8 @@ class UserModel(Base):
             password_hash=u.password_hash,
             verified=u.verified,
             profile_image_url=u.profile_image_url,
+            avatar_data=getattr(u, 'avatar_data', None),
+            avatar_content_type=getattr(u, 'avatar_content_type', None),
             created_at=u.created_at,
             failed_attempts=u.failed_attempts,
             blocked_until=u.blocked_until,

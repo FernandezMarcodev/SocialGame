@@ -43,15 +43,10 @@ class Settings(BaseSettings):
     upload_dir: str = "uploads"
     max_avatar_bytes: int = 2_000_000
 
-    # --- Avatar storage (S3-compatible: AWS S3, Cloudflare R2, MinIO, Supabase, etc.) ---
-    # Si se configuran, se usan en lugar del filesystem local (persistente en multi-instancia)
-    avatar_storage: str = "local"  # "local" | "s3"
-    s3_endpoint_url: str = ""
-    s3_access_key: str = ""
-    s3_secret_key: str = ""
-    s3_bucket: str = ""
-    s3_region: str = "us-east-1"
-    s3_public_url: str = ""  # URL pública del bucket (ej. https://bucket.s3.region.amazonaws.com o CDN)
+    # --- Avatar storage ---
+    # "local" = filesystem (se pierde al reiniciar contenedor, solo 1 instancia)
+    # "database" = PostgreSQL bytea (persistente, multi-instancia, sin servicios extra)
+    avatar_storage: str = "local"
 
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 

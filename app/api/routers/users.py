@@ -1,6 +1,6 @@
 """Routers del módulo de usuarios (Apéndice B.2.2)."""
 
-from fastapi import APIRouter, Depends, File, UploadFile
+from fastapi import APIRouter, Depends, File, Response, UploadFile
 
 from app.api.deps import get_current_user, get_event_bus, get_rooms_service, get_users_service
 from app.api.schemas import GhostDisconnectOut, UpdateProfileIn, UserOut
@@ -33,6 +33,16 @@ async def update_avatar(
 ) -> UserOut:
     content = await file.read()
     return users.update_avatar(user, content, file.content_type)
+
+
+@router.get("/me/avatar/image")
+async def get_avatar_image(
+    user=Depends(get_current_user),
+) -> Response:
+    """Sirve la imagen de avatar desde la base de datos (avatar_storage=database)."""
+    if not user.avatar_data or not user.avatar_content_type:
+        return Response(status_code=404)
+    return Response(content=user.avatar_data, media_type=user.avatar_content_type)
 
 
 @router.post("/me/rooms/force-leave", response_model=GhostDisconnectOut)

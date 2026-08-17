@@ -3,12 +3,10 @@
 Implementa los RF-USR-005 a 007.
 """
 
+import base64
 import glob
 import os
 from typing import Optional
-
-import boto3
-from botocore.config import Config as BotoConfig
 
 from app.api.errors import ApiError
 from app.api.schemas import UserOut
@@ -35,26 +33,13 @@ class UsersService:
         # Backward compat para tests
         self._upload_dir = settings.upload_dir
         self._max_avatar_bytes = settings.max_avatar_bytes
-        self._s3_client: Optional[boto3.client] = None
-        if settings.avatar_storage == "s3" and settings.s3_endpoint_url and settings.s3_bucket:
-            self._s3_client = boto3.client(
-                "s3",
-                endpoint_url=settings.s3_endpoint_url,
-                aws_access_key_id=settings.s3_access_key,
-                aws_secret_access_key=settings.s3_secret_key,
-                region_name=settings.s3_region,
-                config=BotoConfig(s3={"addressing_style": "path"}),
-            )
 
-    def _avatar_key(self, user_id: str, ext: str) -> str:
-        return f"avatars/{user_id}{ext}"
-
-    def _avatar_public_url(self, key: str) -> str:
-        if self._settings.s3_public_url:
-            return f"{self._settings.s3_public_url.rstrip('/')}/{key}"
-        if self._s3_client and self._settings.s3_endpoint_url:
-            return f"{self._settings.s3_endpoint_url.rstrip('/')}/{self._settings.s3_bucket}/{key}"
-        return f"/uploads/{key}"
+    def _avatar_data_url(self, user: User) -> str:
+        """Genera data URL para avatar guardado en DB."""
+        if hasattr(user, 'avatar_data') and user.avatar_data and hasattr(user, 'avatar_content_type') and user.avatar_content_type:
+            b64 = base64.b64encode(user.avatar_data).decode('ascii')
+            return f"data:{user.avatar_content_type};base64,{b64}"
+        return user.profile_image_url or ""
 
     def update_profile(self, user: User, username: str | None, email: str | None) -> UserOut:
         if username is not None and username != user.username:
@@ -77,7 +62,7 @@ class UsersService:
     def update_avatar(self, user: User, content: bytes, content_type: str | None) -> UserOut:
         """Guarda la foto de perfil subida (RF-USR-007).
 
-        - Si avatar_storage == "s3": sube a bucket S3-compatible (persistente multi-instancia)
+        - Si avatar_storage == "database": guarda bytes en PostgreSQL (persistente multi-instancia)
         - Si "local": guarda en filesystem local (solo 1 instancia, se pierde al reiniciar contenedor)
         """
         ext = ALLOWED_AVATAR_TYPES.get(content_type or "")
@@ -92,30 +77,21 @@ class UsersService:
                 f"La foto supera el tamaño máximo ({self._settings.max_avatar_bytes // 1_000_000} MB).",
             )
 
-        key = self._avatar_key(user.id, ext)
-
-        if self._s3_client:
-            # Borrar avatar anterior si existe
-            try:
-                self._s3_client.delete_object(Bucket=self._settings.s3_bucket, Key=key)
-            except Exception:
-                pass
-            # Subir nuevo
-            self._s3_client.put_object(
-                Bucket=self._settings.s3_bucket,
-                Key=key,
-                Body=content,
-                ContentType=content_type,
-                ACL="public-read",
-            )
+        if self._settings.avatar_storage == "database":
+            # Guardar en DB como bytes
+            user.avatar_data = content
+            user.avatar_content_type = content_type
+            # profile_image_url apunta a endpoint que sirve la imagen desde DB
+            user.profile_image_url = f"/api/v1/users/me/avatar/image"
         else:
             # Local filesystem (dev / single instance)
             os.makedirs(self._settings.upload_dir, exist_ok=True)
             for old in glob.glob(os.path.join(self._settings.upload_dir, f"{user.id}.*")):
                 os.remove(old)
-            with open(os.path.join(self._settings.upload_dir, f"{user.id}{ext}"), "wb") as f:
+            filename = f"{user.id}{ext}"
+            with open(os.path.join(self._settings.upload_dir, filename), "wb") as f:
                 f.write(content)
+            user.profile_image_url = f"/uploads/{filename}"
 
-        user.profile_image_url = self._avatar_public_url(key)
         self._users.update(user)
         return UserOut.model_validate(user)
