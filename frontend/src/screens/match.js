@@ -667,7 +667,9 @@ function sortedScores() {
 function confetti() {
   const colors = ['#2ea572', '#7fd0a8', '#c9ecd9', '#2faf98', '#5fbf7f', '#eefbf3'];
   const container = h('div', { class: 'confetti' });
-  for (let i = 0; i < 90; i++) {
+  const prefersReduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const count = prefersReduced ? 15 : 40;
+  for (let i = 0; i < count; i++) {
     const piece = h('span', {
       class: 'confetti-piece',
       style: {
@@ -681,5 +683,5 @@ function confetti() {
     container.append(piece);
   }
   document.body.append(container);
-  setTimeout(() => container.remove(), 3500);
+  setTimeout(() => container.remove(), prefersReduced ? 1500 : 3000);
 }
