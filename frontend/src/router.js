@@ -18,7 +18,7 @@ export function navigate(to) {
   location.hash = '#' + to;
 }
 
-const PUBLIC = ['landing', 'login', 'register', 'forgot', 'reset'];
+const PUBLIC = ['landing', 'login', 'register', 'forgot', 'reset', 'howto'];
 
 export function handleRoute() {
   const { seg, params } = parse(location.hash);

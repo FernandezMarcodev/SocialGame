@@ -2,8 +2,10 @@
 
 from fastapi import APIRouter, Depends, File, UploadFile
 
-from app.api.deps import get_current_user, get_users_service
-from app.api.schemas import UpdateProfileIn, UserOut
+from app.api.deps import get_current_user, get_event_bus, get_rooms_service, get_users_service
+from app.api.schemas import GhostDisconnectOut, UpdateProfileIn, UserOut
+from app.services.room_service import RoomService
+from app.services.realtime_service import EventBus
 from app.services.users_service import UsersService
 
 router = APIRouter(prefix="/users", tags=["users"])
@@ -31,3 +33,31 @@ async def update_avatar(
 ) -> UserOut:
     content = await file.read()
     return users.update_avatar(user, content, file.content_type)
+
+
+@router.post("/me/rooms/force-leave", response_model=GhostDisconnectOut)
+async def force_disconnect(
+    user=Depends(get_current_user),
+    rooms: RoomService = Depends(get_rooms_service),
+    bus: EventBus = Depends(get_event_bus),
+) -> GhostDisconnectOut:
+    """Desconectar al usuario de todas las salas fantasmas (RF-COM-010).
+
+    Busca la sala en la que el jugador esté registrado (aunque haya dejado
+    de estar conectado) y lo elimina, notificando a los jugadores restantes
+    vía WebSocket. Si la sala queda vacía se elimina automáticamente.
+    """
+    room = rooms.force_disconnect(user)
+    if room is not None:
+        out = rooms.serialize(room)
+        await bus.publish("room.updated", {"code": room.code, "room": out.model_dump()})
+        return GhostDisconnectOut(
+            disconnected=True,
+            room_code=room.code,
+            message="Te has desconectado de la sala.",
+        )
+    return GhostDisconnectOut(
+        disconnected=False,
+        room_code=None,
+        message="No estabas en ninguna sala.",
+    )

@@ -250,6 +250,87 @@ def test_cancel_started_room_is_rejected(client, outbox):
     assert resp.json()["error"]["code"] == "ROOM_IN_MATCH"
 
 
+def test_force_disconnect_no_room(client, outbox):
+    tokens = make_users(client, outbox, 1)
+    resp = client.post("/api/v1/users/me/rooms/force-leave", headers=auth_headers(tokens[0]))
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["disconnected"] is False
+    assert data["room_code"] is None
+
+
+def test_force_disconnect_removes_ghost_room(client, outbox):
+    tokens = make_users(client, outbox, 1)
+    room = create_room(client, tokens[0])
+    resp = client.post("/api/v1/users/me/rooms/force-leave", headers=auth_headers(tokens[0]))
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["disconnected"] is True
+    assert data["room_code"] == room["code"]
+    # La sala debe haber sido eliminada (era el último jugador).
+    resp = client.get(f"/api/v1/rooms/{room['code']}", headers=auth_headers(tokens[0]))
+    assert resp.status_code == 404
+
+
+def test_force_disconnect_notifies_remaining_players(client, outbox):
+    tokens = make_users(client, outbox, 2)
+    room = create_room(client, tokens[0])
+    client.post(f"/api/v1/rooms/{room['code']}/join", headers=auth_headers(tokens[1]))
+    resp = client.post("/api/v1/users/me/rooms/force-leave", headers=auth_headers(tokens[0]))
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["disconnected"] is True
+    assert data["room_code"] == room["code"]
+    # La sala sigue viva con el jugador restante.
+    resp = client.get(f"/api/v1/rooms/{room['code']}", headers=auth_headers(tokens[1]))
+    assert resp.status_code == 200
+    assert len(resp.json()["players"]) == 1
+
+
+def test_force_disconnect_transfers_creator(client, outbox):
+    tokens = make_users(client, outbox, 2)
+    room = create_room(client, tokens[0])
+    client.post(f"/api/v1/rooms/{room['code']}/join", headers=auth_headers(tokens[1]))
+    resp = client.post("/api/v1/users/me/rooms/force-leave", headers=auth_headers(tokens[0]))
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["disconnected"] is True
+    # El creador debe haber pasado al segundo jugador.
+    resp = client.get(f"/api/v1/rooms/{room['code']}", headers=auth_headers(tokens[1]))
+    second = client.get("/api/v1/users/me", headers=auth_headers(tokens[1])).json()
+    assert resp.json()["creator_id"] == second["id"]
+
+
+def test_force_disconnect_during_in_match(client, outbox):
+    """El desconectado forzado debe permitir salir incluso si la partida inició."""
+    tokens = make_users(client, outbox, 2)
+    room = create_room(client, tokens[0])
+    client.post(f"/api/v1/rooms/{room['code']}/join", headers=auth_headers(tokens[1]))
+    client.post(f"/api/v1/rooms/{room['code']}/start", headers=auth_headers(tokens[0]))
+    resp = client.post("/api/v1/users/me/rooms/force-leave", headers=auth_headers(tokens[0]))
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["disconnected"] is True
+    # El segundo jugador aún puede ver la sala (en_match) y seguir jugando.
+    resp = client.get(f"/api/v1/rooms/{room['code']}", headers=auth_headers(tokens[1]))
+    assert resp.status_code == 200
+    assert len(resp.json()["players"]) == 1
+
+
+def test_force_disconnect_enables_new_room(client, outbox):
+    """Después del force-leave, el jugador puede crear una sala nueva."""
+    tokens = make_users(client, outbox, 1)
+    create_room(client, tokens[0])
+    # Sin force-leave, crear una sala falla (RN-004).
+    resp = client.post("/api/v1/rooms", json={"modality_id": MODALITY_ID}, headers=auth_headers(tokens[0]))
+    assert resp.status_code == 409
+    # Force-leave despeja la sala fantasma.
+    client.post("/api/v1/users/me/rooms/force-leave", headers=auth_headers(tokens[0]))
+    # Ahora sí se puede crear una sala.
+    resp = client.post("/api/v1/rooms", json={"modality_id": MODALITY_ID}, headers=auth_headers(tokens[0]))
+    assert resp.status_code == 201
+
+
 def test_rooms_endpoints_require_auth(client):
     resp = client.get("/api/v1/rooms/AB12CD")
     assert resp.status_code == 401

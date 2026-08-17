@@ -131,6 +131,31 @@ class RoomService:
             self._rooms.remove(code)
         return room
 
+    def force_disconnect(self, user: User) -> Room | None:
+        """Desconecta al jugador de su sala actual, incluso si la partida inició.
+
+        Resuelve el problema de salas fantasma (RF-COM-010): cuando un jugador
+        se desconecta sin abandonar explícitamente, queda bloqueado en la sala
+        y no puede crear ni unirse a otra (RN-004). Este método busca la sala
+        del jugador por su *user_id* y lo elimina, transfiriendo la creación
+        si es necesario y borrando la sala cuando queda vacía.
+
+        Devuelve la sala si quedan jugadores (para notificarlos vía WS),
+        o ``None`` si el jugador no estaba en ninguna sala o la sala fue
+        eliminada por quedar vacía.
+        """
+        room = self._rooms.get_room_by_player(user.id)
+        if room is None:
+            return None
+        room = self._rooms.remove_player(room.code, user.id)
+        if room is None:
+            return None
+        if room.creator_id == user.id and room.players:
+            room = self._rooms.set_creator(room.code, room.players[0].id)
+        if room is not None and not room.players:
+            self._rooms.remove(room.code)
+        return room
+
     def cancel_room(self, user: User, code: str) -> None:
         room = self.get_room(code)
         if room.creator_id != user.id:

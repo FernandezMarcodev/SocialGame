@@ -85,13 +85,14 @@ export const api = {
   resetPassword: (token, new_password) => call('/api/v1/auth/reset-password', { method: 'POST', body: { token, new_password }, auth: false }),
 
   // Usuarios
-  me: () => call('/api/v1/users/me'),
-  updateMe: (fields) => call('/api/v1/users/me', { method: 'PATCH', body: fields }),
-  updateAvatar: (file) => {
-    const form = new FormData();
-    form.append('file', file);
-    return call('/api/v1/users/me/avatar', { method: 'PUT', body: form });
-  },
+   me: () => call('/api/v1/users/me'),
+   updateMe: (fields) => call('/api/v1/users/me', { method: 'PATCH', body: fields }),
+   updateAvatar: (file) => {
+     const form = new FormData();
+     form.append('file', file);
+     return call('/api/v1/users/me/avatar', { method: 'PUT', body: form });
+   },
+   forceLeaveGhosts: () => call('/api/v1/users/me/rooms/force-leave', { method: 'POST' }),
 
   // Modalidades
   modalities: () => call('/api/v1/modalities').then((d) => d?.items ?? []),

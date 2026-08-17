@@ -111,6 +111,29 @@ export function profile(view) {
     }
   }
 
+  // Desconectar salas fantasmas (RF-COM-010)
+  const ghostBtn = h(
+    'button',
+    { class: 'btn btn--glass btn--block', type: 'button', text: 'Desconectarme de salas fantasmas' }
+  );
+  ghostBtn.addEventListener('click', async () => {
+    ghostBtn.disabled = true;
+    ghostBtn.classList.add('btn--loading');
+    try {
+      const result = await api.forceLeaveGhosts();
+      if (result.disconnected) {
+        toast('Te has desconectado de la sala.', 'success');
+      } else {
+        toast(result.message || 'No estabas en ninguna sala.', 'info');
+      }
+    } catch (err) {
+      toast(err.message, 'error');
+    } finally {
+      ghostBtn.disabled = false;
+      ghostBtn.classList.remove('btn--loading');
+    }
+  });
+
   const logoutBtn = h('button', { class: 'btn btn--danger btn--block', type: 'button', text: 'Cerrar sesión' });
   logoutBtn.addEventListener('click', () => {
     confirmSheet({
@@ -170,6 +193,11 @@ export function profile(view) {
         pwMsg,
         pwBtn
       )
+    ),
+    h('section', { class: 'profile-card' },
+      h('h2', { class: 'panel-title' }, 'Sesión activa'),
+      h('p', { class: 'form-hint', text: 'Si un jugador se desconectó sin salir de una sala, queda como sala fantasma.' }),
+      ghostBtn
     ),
     h('section', { class: 'profile-card' },
       logoutBtn

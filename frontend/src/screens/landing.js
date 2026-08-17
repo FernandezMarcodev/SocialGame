@@ -34,7 +34,10 @@ function hero(view) {
       )
     ),
     h('section', { class: 'howto' },
-      h('h2', { class: 'howto-title' }, 'Cómo se juega'),
+      h('div', { class: 'howto-head' },
+        h('h2', { class: 'howto-title' }, 'Cómo se juega'),
+        h('a', { class: 'howto-link', href: '#/howto', text: 'Ver guía completa', onclick: (e) => { e.preventDefault(); navigate('/howto'); } })
+      ),
       h('div', { class: 'howto-grid' },
         step('1', 'Creá o uníte a una sala', 'Con un código privado compartís la sala con hasta 6 jugadores.'),
         step('2', 'Completá la frase', 'Cuando es tu turno, terminás la frase y elegís un puntaje secreto del 1 al 10.'),
@@ -67,7 +70,8 @@ function dashboard(view) {
     ),
     h('section', { class: 'dash-grid' },
       createCard(),
-      joinCard()
+      joinCard(),
+      ghostCard()
     )
   );
 }
@@ -116,6 +120,37 @@ function joinCard() {
     h('p', { class: 'dash-card-desc' }, '¿Te pasaron un código? Entrá directo a la partida.'),
     input,
     h('button', { class: 'btn btn--glass btn--block', type: 'button', onclick: submit }, 'Unirse')
+  );
+}
+
+function ghostCard() {
+  const btn = h(
+    'button',
+    { class: 'btn btn--glass btn--block', type: 'button', text: 'Desconectar sala fantasma' }
+  );
+  btn.addEventListener('click', async () => {
+    btn.disabled = true;
+    btn.classList.add('btn--loading');
+    try {
+      const result = await api.forceLeaveGhosts();
+      if (result.disconnected) {
+        toast('Sala fantasma limpiada. Ya podés crear o unirte a una sala.', 'success');
+      } else {
+        toast(result.message || 'No estabas en ninguna sala.', 'info');
+      }
+    } catch (err) {
+      toast(err.message, 'error');
+    } finally {
+      btn.disabled = false;
+      btn.classList.remove('btn--loading');
+    }
+  });
+
+  return h('div', { class: 'dash-card' },
+    h('div', { class: 'dash-card-icon dash-card-icon--ghost', text: '👻' }),
+    h('h2', { class: 'dash-card-title' }, 'Sala fantasma'),
+    h('p', { class: 'dash-card-desc' }, 'Si te desconectaste sin salir de una sala, usalo para liberar tu cupo.'),
+    btn
   );
 }
 

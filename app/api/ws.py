@@ -10,7 +10,8 @@ import logging
 from fastapi import APIRouter, Query, WebSocket, WebSocketDisconnect
 
 from app.api.errors import ApiError
-from app.services.realtime_service import ConnectionManager
+from app.services.realtime_service import ConnectionManager, EventBus
+from app.services.room_service import RoomService
 
 router = APIRouter(tags=["realtime"])
 logger = logging.getLogger(__name__)
@@ -23,6 +24,8 @@ async def websocket_endpoint(
     state = websocket.scope["app"].state
     auth_service = state.auth_service
     manager: ConnectionManager = state.connection_manager
+    rooms: RoomService = state.rooms_service
+    bus: EventBus = state.event_bus
     try:
         user = auth_service.resolve_access_token(token)
     except ApiError:
@@ -35,3 +38,31 @@ async def websocket_endpoint(
             await websocket.receive_text()
     except (WebSocketDisconnect, RuntimeError):
         await manager.disconnect(user.id, websocket)
+        await _on_player_disconnected(user, rooms, bus)
+
+
+async def _on_player_disconnected(
+    user, rooms: RoomService, bus: EventBus
+) -> None:
+    """Limpieza automática de salas fantasma (RF-COM-010).
+
+    Cuando un jugador se desconecta del WebSocket sin abandonar la sala
+    explícitamente, se elimina de su sala actual. Si la sala queda vacía
+    se borra; si quedan jugadores se les notifica vía WebSocket.
+    """
+    try:
+        room = rooms.force_disconnect(user)
+        if room is not None:
+            out = rooms.serialize(room)
+            await bus.publish(
+                "room.updated", {"code": room.code, "room": out.model_dump()}
+            )
+            logger.info(
+                "sala fantasma limpiada: %s dejó la sala %s",
+                user.username,
+                room.code,
+            )
+    except Exception:
+        logger.exception(
+            "error limpiando sala fantasma para %s", user.username
+        )

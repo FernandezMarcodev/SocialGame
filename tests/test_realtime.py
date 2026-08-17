@@ -197,3 +197,18 @@ class TestWebSocketGateway:
         with pytest.raises(WebSocketDisconnect):
             with client.websocket_connect("/api/v1/ws?token=invalido"):
                 pass
+
+    def test_ws_disconnect_cleans_ghost_room(self, client, outbox):
+        """RF-COM-010: al desconectar el WebSocket se limpia la sala fantasma."""
+        token = verified_login(client, outbox, "ws_ghost", "ws_ghost@example.com")
+        client.post("/api/v1/rooms", json={"modality_id": 1}, headers=auth_headers(token))
+
+        # Conectar y desconectar el WebSocket (simula cierre de pestaña).
+        with client.websocket_connect(f"/api/v1/ws?token={token}"):
+            pass
+
+        # El usuario debería haber sido eliminado de la sala automáticamente.
+        resp = client.post(
+            "/api/v1/rooms", json={"modality_id": 1}, headers=auth_headers(token)
+        )
+        assert resp.status_code == 201, "La sala fantasma no fue limpiada al desconectar WS"

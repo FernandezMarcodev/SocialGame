@@ -94,6 +94,12 @@ class RoomOut(BaseModel):
     created_at: int
 
 
+class GhostDisconnectOut(BaseModel):
+    disconnected: bool
+    room_code: str | None = None
+    message: str = ""
+
+
 class MatchStartOut(BaseModel):
     match_id: str
 

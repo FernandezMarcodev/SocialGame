@@ -9,10 +9,11 @@ import { landing } from './landing.js';
 import { login, register, forgot, reset } from './auth.js';
 import { room } from './room.js';
 import { match } from './match.js';
+import { howto } from './howto.js';
 import { profile } from './profile.js';
 import { notFound } from './notfound.js';
 
-export { landing, login, register, forgot, reset, room, match, profile, notFound };
+export { landing, login, register, forgot, reset, room, match, howto, profile, notFound };
 
 let listenersAttached = false;
 
@@ -27,7 +28,7 @@ export function shell(root, ctx) {
         h('span', { class: 'brand-badge', text: '10' }),
         h('span', { class: 'brand-name' }, 'Es un 10 pero…')
       ),
-      h('div', { class: 'topbar-right' }, isAuthed() ? avatarBtn() : null)
+      h('div', { class: 'topbar-right' }, isAuthed() ? avatarBtn() : h('a', { class: 'topbar-link', href: '#/howto', text: 'Cómo se juega', onclick: (e) => { e.preventDefault(); navigate('/howto'); } }))
     );
     const view = h('main', { id: 'view', class: 'view' });
     mount(root, h('div', { class: 'app-shell' }, header, view));
