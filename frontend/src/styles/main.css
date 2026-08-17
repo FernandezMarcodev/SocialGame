@@ -994,11 +994,17 @@ body::after {
 }
 
 .dash-ghost {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  display: none;
+  grid-template-columns: 1fr 1fr;
   gap: 20px;
   max-width: 720px;
   margin: 0 auto;
+}
+
+@media (min-width: 768px) {
+  .dash-ghost {
+    display: grid;
+  }
 }
 
 .dash-ghost .dash-card {
