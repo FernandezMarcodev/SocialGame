@@ -1,16 +1,23 @@
 """Tests del módulo de turnos (RF-TUR-001 a 011)."""
 
+import asyncio
+
 import pytest
 
 from app.api.errors import ApiError
 from app.core.config import Settings
 from app.domain.entities import PlayerRef, Room
 from app.services.match_service import MatchService
+from app.services.realtime_service import EventBus
 from app.services.scoring_service import ScoringService
 from app.services.turn_service import TurnService
 from app.stores.memory import MemoryMatchStore, MemoryRoomStore, MemoryTurnStore
 from tests.test_auth import auth_headers
 from tests.test_matches import start_match_http
+
+
+def run(coro):
+    return asyncio.run(coro)
 
 
 def match_and_turn(client, outbox, amount=2):
@@ -242,11 +249,13 @@ class TestTurnServiceUnit:
         mstore, rstore = MemoryMatchStore(), MemoryRoomStore()
         matches = MatchService(matches=mstore, rooms=rstore, now=clock)
         scoring = ScoringService(matches=matches)
+        bus = EventBus()
         turns = TurnService(
             settings=settings,
             matches=matches,
             turns=MemoryTurnStore(),
             scoring=scoring,
+            bus=bus,
             now=clock,
         )
         room = Room(
@@ -272,7 +281,7 @@ class TestTurnServiceUnit:
         assert turn.state == "active"
         clock.advance(2 * 60_000)
         with pytest.raises(ApiError) as exc:
-            turns.submit_phrase("u1", match.match_id, "Es un 10 pero tardo", 5)
+            run(turns.submit_phrase("u1", match.match_id, "Es un 10 pero tardo", 5))
         assert exc.value.code == "TURN_EXPIRED"
         assert turn.state == "discarded"
         nxt = turns.get_turn(match.current_turn)
@@ -280,10 +289,10 @@ class TestTurnServiceUnit:
 
     def test_voting_timeout_finalizes_and_advances(self):
         clock, matches, turns, match, turn = self._setup(["u1", "u2"])
-        turns.submit_phrase("u1", match.match_id, "Es un 10 pero llego tarde", 5)
+        run(turns.submit_phrase("u1", match.match_id, "Es un 10 pero llego tarde", 5))
         clock.advance(2 * 30_000)
         with pytest.raises(ApiError) as exc:
-            turns.submit_vote("u2", match.match_id, 5)
+            run(turns.submit_vote("u2", match.match_id, 5))
         assert exc.value.code == "TURN_FINISHED"
         assert turn.state == "finished"
         assert matches.get_match(match.match_id).current_turn != turn.turn_id
@@ -291,27 +300,27 @@ class TestTurnServiceUnit:
     def test_settle_expired_advances(self):
         clock, matches, turns, match, turn = self._setup(["u1", "u2"])
         clock.advance(2 * 60_000)
-        turns.settle_expired(match.match_id)
+        run(turns.settle_expired(match.match_id))
         assert turn.state == "discarded"
         assert matches.get_match(match.match_id).current_turn != turn.turn_id
 
     def test_points_only_exact_matches(self):
         clock, matches, turns, match, turn = self._setup(["u1", "u2", "u3"])
-        turns.submit_phrase("u1", match.match_id, "Es un 10 pero grito", 5)
-        turns.submit_vote("u2", match.match_id, 5)
-        turns.submit_vote("u3", match.match_id, 3)
+        run(turns.submit_phrase("u1", match.match_id, "Es un 10 pero grito", 5))
+        run(turns.submit_vote("u2", match.match_id, 5))
+        run(turns.submit_vote("u3", match.match_id, 3))
         assert turn.state == "finished"
         assert turn.points == 1
         assert matches.get_match(match.match_id).scores["u1"] == 1
 
     def test_full_round_finishes_with_winner(self):
         clock, matches, turns, match, turn = self._setup(["u1", "u2"], order=["u1", "u2"])
-        turns.submit_phrase("u1", match.match_id, "Es un 10 pero como", 5)
-        turns.submit_vote("u2", match.match_id, 5)
+        run(turns.submit_phrase("u1", match.match_id, "Es un 10 pero como", 5))
+        run(turns.submit_vote("u2", match.match_id, 5))
         turn2 = turns.get_turn(match.current_turn)
         assert turn2.author_id == "u2"
-        turns.submit_phrase("u2", match.match_id, "Es un 10 pero duermo", 7)
-        turns.submit_vote("u1", match.match_id, 3)
+        run(turns.submit_phrase("u2", match.match_id, "Es un 10 pero duermo", 7))
+        run(turns.submit_vote("u1", match.match_id, 3))
         after = matches.get_match(match.match_id)
         assert after.state == "finished"
         assert after.scores == {"u1": 1, "u2": 0}

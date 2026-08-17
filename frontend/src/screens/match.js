@@ -1,11 +1,14 @@
 // Pantalla de partida: fases de turno, votación, resultados y marcador.
-// Se sincroniza con el backend real por polling (la API es REST, sin WebSocket).
+// Se sincroniza con el backend real por polling (la API es REST, sin WebSocket)
+// complementado con eventos de tiempo real (rt:turn.expired / rt:turn.advanced)
+// que forzan un refresco inmediato cuando un turno vence entre routers.
 import { h } from '../ui/dom.js';
 import { navigate } from '../router.js';
 import { api } from '../api.js';
 import { store, currentUser } from '../store.js';
 import { avatar, codeTiles, progressBar, scoreCard, scoreSelector, spinner } from '../ui/components.js';
 import { toast } from '../ui/toast.js';
+import { on, off } from '../events.js';
 
 const POLL_MS = 1200;
 const RESULT_SHOW_MS = 4500;
@@ -19,11 +22,26 @@ let finishTimer = null;
 let lastRenderKey = null;
 let draft = '';
 let draftTurn = null;
+let wsSubs = [];
 
 export function match(v, { seg }) {
   view = v;
   load(seg[1]);
   return h('div', { class: 'match-loading' }, spinner('Cargando partida…'));
+}
+
+function subscribeRT() {
+  const handler = () => {
+    if (M && M.state !== 'finished') pollNow();
+  };
+  on('rt:turn.expired', handler);
+  on('rt:turn.advanced', handler);
+  wsSubs = [...wsSubs, { type: 'rt:turn.expired', cb: handler }, { type: 'rt:turn.advanced', cb: handler }];
+}
+
+function unsubscribeRT() {
+  wsSubs.forEach(({ type, cb }) => off(type, cb));
+  wsSubs = [];
 }
 
 async function load(id) {
@@ -36,6 +54,7 @@ async function load(id) {
     fetchModality();
     poll();
     pollTimer = setInterval(poll, POLL_MS);
+    subscribeRT();
   } catch (err) {
     toast(err.message, 'error');
     navigate('/');
