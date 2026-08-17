@@ -127,8 +127,7 @@ def create_app(
     )
     users_service = UsersService(
         users=user_store,
-        upload_dir=settings.upload_dir,
-        max_avatar_bytes=settings.max_avatar_bytes,
+        settings=settings,
     )
     match_service = MatchService(matches=match_store, rooms=room_store)
     scoring_service = ScoringService(matches=match_service)

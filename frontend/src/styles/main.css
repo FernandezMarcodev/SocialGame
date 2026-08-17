@@ -1619,19 +1619,21 @@ body::after {
   transition: width 0.2s linear;
 }
 
-/* Selector de puntaje 1-10 */
+/* Selector de puntaje 1-10 — responsive */
 .score-selector {
   display: flex;
   flex-wrap: wrap;
   justify-content: center;
-  gap: 10px;
-  max-width: 520px;
+  gap: clamp(6px, 1.5vw, 10px);
+  max-width: 100%;
 }
 
 .score-chip {
-  width: 58px;
-  height: 80px;
-  border-radius: 10px;
+  width: clamp(44px, 10vw, 58px);
+  height: clamp(60px, 14vw, 80px);
+  min-width: 44px;
+  min-height: 60px;
+  border-radius: clamp(8px, 1.5vw, 10px);
   border: 2px solid rgba(31, 90, 62, 0.25);
   background: #fff;
   box-shadow: 0 2px 6px rgba(30, 58, 44, 0.12);
@@ -1640,10 +1642,11 @@ body::after {
   flex-direction: column;
   justify-content: space-between;
   align-items: center;
-  padding: 6px;
+  padding: clamp(4px, 1vw, 6px);
   cursor: pointer;
   font-family: var(--font-display);
   transition: all 0.18s var(--ease-spring);
+  flex-shrink: 0;
 }
 
 .score-chip:hover:not(:disabled) {
@@ -1697,32 +1700,35 @@ body::after {
   color: var(--red);
 }
 
-/* Carta estática (revelado de puntaje secreto) */
+/* Carta estática (revelado de puntaje secreto) — responsive */
 .card--static {
   display: inline-flex;
   flex-direction: column;
   justify-content: space-between;
   align-items: center;
-  width: 84px;
-  height: 118px;
-  border-radius: 14px;
+  width: clamp(60px, 14vw, 84px);
+  height: clamp(84px, 20vw, 118px);
+  min-width: 60px;
+  min-height: 84px;
+  border-radius: clamp(10px, 2vw, 14px);
   border: 2px solid rgba(31, 90, 62, 0.28);
   background: #fff;
   box-shadow: 0 10px 24px rgba(30, 58, 44, 0.18);
-  padding: 8px;
+  padding: clamp(6px, 1.5vw, 8px);
   animation: pop-in 0.6s var(--ease-spring);
+  flex-shrink: 0;
 }
 
 .card--static .card-rank {
-  font-size: 26px;
+  font-size: clamp(18px, 4vw, 26px);
 }
 
 .card--static .card-center {
-  font-size: 34px;
+  font-size: clamp(24px, 5.5vw, 34px);
 }
 
 .card--static .card-suit {
-  font-size: 17px;
+  font-size: clamp(12px, 3vw, 17px);
 }
 
 /* Resultado */
