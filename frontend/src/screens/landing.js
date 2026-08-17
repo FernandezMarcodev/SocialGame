@@ -73,7 +73,8 @@ function dashboard(view) {
       joinCard()
     ),
     h('section', { class: 'dash-ghost' },
-      ghostCard()
+      ghostCard(),
+      devInfoCard()
     )
   );
 }
@@ -153,6 +154,20 @@ function ghostCard() {
     h('h2', { class: 'dash-card-title' }, 'Sala fantasma'),
     h('p', { class: 'dash-card-desc' }, 'Si te desconectaste sin salir de una sala, usalo para liberar tu cupo.'),
     btn
+  );
+}
+
+function devInfoCard() {
+  return h('div', { class: 'dash-card dash-card--dev' },
+    h('div', { class: 'dash-card-icon dash-card-icon--dev', text: '👨‍💻' }),
+    h('h2', { class: 'dash-card-title' }, 'Desarrollado por'),
+    h('p', { class: 'dash-card-desc' }, 'FernandezMarcodev'),
+    h('p', { class: 'dash-card-desc' }, 'Desarrollador Backend · Analista en Informática'),
+    h('div', { class: 'dev-links' },
+      h('a', { class: 'dev-link', href: 'https://github.com/FernandezMarcodev', target: '_blank', rel: 'noopener', text: 'GitHub' }),
+      h('span', { class: 'dev-separator', text: '·' }),
+      h('a', { class: 'dev-link', href: 'https://linkedin.com/in/fernandezmarcodev', target: '_blank', rel: 'noopener', text: 'LinkedIn' })
+    )
   );
 }
 

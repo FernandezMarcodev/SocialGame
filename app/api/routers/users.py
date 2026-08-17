@@ -1,6 +1,6 @@
 """Routers del módulo de usuarios (Apéndice B.2.2)."""
 
-from fastapi import APIRouter, Depends, File, Query, Response, UploadFile
+from fastapi import APIRouter, Depends, File, Query, Request, Response, UploadFile
 
 from app.api.deps import get_current_user, get_event_bus, get_rooms_service, get_users_service
 from app.api.schemas import GhostDisconnectOut, UpdateProfileIn, UserOut
@@ -9,8 +9,13 @@ from app.services.realtime_service import EventBus
 from app.services.users_service import UsersService
 from app.api.errors import ApiError
 from app.services.auth_service import AuthService
+from app.domain.entities import User
 
 router = APIRouter(prefix="/users", tags=["users"])
+
+
+def get_auth_service(request: Request) -> AuthService:
+    return request.app.state.auth_service
 
 
 @router.get("/me", response_model=UserOut)
@@ -39,12 +44,17 @@ async def update_avatar(
 
 async def _get_user_from_token(
     token: str | None = Query(default=None),
-    auth_service: AuthService = Depends(lambda r: r.app.state.auth_service),
-) -> UserOut:
+    auth_service: AuthService = Depends(get_auth_service),
+    users_service: UsersService = Depends(get_users_service),
+) -> User:
     """Obtiene usuario desde query param token (para <img src>)."""
     if token:
         try:
-            return auth_service.resolve_access_token(token)
+            user_out = auth_service.resolve_access_token(token)
+            # Obtener el usuario completo desde la BD para acceder a avatar_data
+            user = users_service._users.get_by_id(user_out.id)
+            if user:
+                return user
         except ApiError:
             pass
     # Si no hay token válido en query, devolvemos 401
@@ -86,6 +96,11 @@ async def force_disconnect(
             room_code=room.code,
             message="Te has desconectado de la sala.",
         )
+    return GhostDisconnectOut(
+        disconnected=False,
+        room_code=None,
+        message="No estabas en ninguna sala.",
+    )
     return GhostDisconnectOut(
         disconnected=False,
         room_code=None,

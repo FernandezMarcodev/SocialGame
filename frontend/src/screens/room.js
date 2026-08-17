@@ -29,6 +29,7 @@ function teardown() {
   subs = [];
   joining = false;
   joinAttempts = 0;
+  if (pollTimer) { clearInterval(pollTimer); pollTimer = null; }
 }
 
 function onWs(event, cb) {
@@ -60,8 +61,10 @@ async function load(roomCode) {
 
 function subscribe(roomCode) {
   onWs('rt:match.started', (data) => {
+    if (!location.hash.startsWith('#/room')) return;
     toast('La partida comenzó.', 'success');
     store.room = null;
+    teardown();
     navigate(`/match/${data.match_id}`);
   });
 
@@ -77,6 +80,14 @@ function subscribe(roomCode) {
     store.room = null;
     navigate('/');
   });
+
+  // Cleanup on route change
+  const cleanup = () => {
+    if (location.hash.startsWith('#/room')) return;
+    teardown();
+    window.removeEventListener('hashchange', cleanup);
+  };
+  window.addEventListener('hashchange', cleanup);
 
   // Re-sincronización tras una reconexión del canal.
   onWs('rt:open', () => {
@@ -132,6 +143,7 @@ function render() {
         } catch (err) {
           toast(err.message, 'error');
         }
+        teardown();
         store.room = null;
         navigate('/');
       },

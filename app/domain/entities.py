@@ -11,6 +11,8 @@ class User:
     password_hash: str
     verified: bool = True
     profile_image_url: str = ""
+    avatar_data: bytes | None = None
+    avatar_content_type: str | None = None
     created_at: int = 0
     failed_attempts: int = 0
     blocked_until: int | None = None

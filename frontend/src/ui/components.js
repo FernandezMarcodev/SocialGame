@@ -38,8 +38,8 @@ export function avatar(user, size = 44, { crown = false } = {}) {
 }
 
 // --- Selector de puntaje 1-10 (RN-012 / RN-015) como cartas de baraja inglesa ---
-const CARD_SUITS = ['♠', '♥', '♣', '♦'];
-const CARD_RED = ['♥', '♦'];
+const CARD_SUITS = ['♥'];
+const CARD_RED = ['♥'];
 
 export function scoreSelector({ selected = null, onSelect, disabled = false } = {}) {
   const node = h('div', { class: 'score-selector score-selector--cards' });
@@ -78,11 +78,10 @@ export function scoreCard(v) {
 }
 
 function cardFace(v) {
-  const suit = CARD_SUITS[(v - 1) % CARD_SUITS.length];
-  const red = CARD_RED.includes(suit);
+  const suit = '♥';
   return [
     cardCorner(v, suit),
-    h('span', { class: 'card-center card-suit' + (red ? ' is-red' : ''), text: suit }),
+    h('span', { class: 'card-center card-suit is-red', text: suit }),
     cardCorner(v, suit, true),
   ];
 }
@@ -90,7 +89,7 @@ function cardFace(v) {
 function cardCorner(rank, suit, flipped = false) {
   return h(
     'span',
-    { class: 'card-corner' + (flipped ? ' card-corner--br' : '') + (CARD_RED.includes(suit) ? ' is-red' : '') },
+    { class: 'card-corner' + (flipped ? ' card-corner--br' : '') + ' is-red' },
     h('span', { class: 'card-rank', text: rank }),
     h('span', { class: 'card-suit', text: suit })
   );
