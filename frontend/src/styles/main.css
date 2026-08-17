@@ -1692,20 +1692,18 @@ body::after {
   transition: width 0.2s linear;
 }
 
-/* Selector de puntaje 1-10 — responsive, 10 cartas en una fila */
+/* Selector de puntaje 1-10 — responsive, 10 cartas */
 .score-selector {
   display: flex;
-  flex-wrap: nowrap;
+  flex-wrap: wrap;
   justify-content: center;
   gap: clamp(4px, 1vw, 8px);
   max-width: 100%;
-  overflow-x: auto;
   padding: 4px 8px;
 }
 
 .score-chip {
-  flex: 1 1 0;
-  min-width: 0;
+  flex: 1 1 clamp(44px, 9vw, 58px);
   max-width: clamp(44px, 9vw, 58px);
   height: clamp(52px, 12vw, 72px);
   min-height: 52px;
@@ -1724,17 +1722,23 @@ body::after {
   transition: all 0.18s var(--ease-spring);
 }
 
+/* Mobile: cartas más grandes, 2 filas de 5, sin scroll */
 @media (max-width: 600px) {
   .score-selector {
-    gap: 3px;
-    padding: 2px 4px;
+    gap: 6px;
+    padding: 8px 12px;
   }
   .score-chip {
-    max-width: 8.5vw;
-    height: 11vw;
-    min-height: 48px;
-    padding: 2px;
+    flex: 1 1 38%;
+    max-width: 38%;
+    height: 18vw;
+    min-height: 64px;
+    max-height: 80px;
+    padding: 4px;
   }
+  .card-rank { font-size: clamp(14px, 3.5vw, 18px); }
+  .card-center { font-size: clamp(18px, 4.5vw, 24px); }
+  .card-suit { font-size: clamp(10px, 2.5vw, 14px); }
 }
 
 .score-chip:hover:not(:disabled) {
