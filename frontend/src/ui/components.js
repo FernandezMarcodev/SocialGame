@@ -21,8 +21,12 @@ export function avatar(user, size = 44, { crown = false } = {}) {
         imgSrc = `${url}?token=${encodeURIComponent(token)}`;
       }
     }
+    const initial = String(user?.username || '?').charAt(0).toUpperCase();
+    const hue = avatarHue(user?.id || user?.username || '?');
+    const bgStyle = `linear-gradient(135deg, hsl(${hue} 82% 62%), hsl(${(hue + 46) % 360} 80% 52%))`;
+    const onError = `this.onerror=null; this.src=''; this.style.background='${bgStyle}'; this.alt='${initial}'; this.nextElementSibling?.remove(); this.textContent='${initial}';`;
     return h('div', { class: 'avatar avatar--img', style, title: user?.username },
-      h('img', { class: 'avatar-img', src: imgSrc, alt: user?.username || '' }),
+      h('img', { class: 'avatar-img', src: imgSrc, alt: user?.username || '', onerror: onError }),
       crown ? h('span', { class: 'avatar-crown', text: '♛' }) : null
     );
   }
