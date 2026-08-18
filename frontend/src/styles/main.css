@@ -1003,8 +1003,11 @@ body::after {
 
 @media (min-width: 768px) {
   .dash-ghost {
+    display: grid;
     grid-template-columns: 1fr 1fr;
     gap: 20px;
+    max-width: none;
+    margin: 0;
   }
 }
 
