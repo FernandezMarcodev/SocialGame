@@ -2,19 +2,19 @@
 import { h } from './dom.js';
 import { avatarHue } from '../store.js';
 
-// --- Avatar automático (RN-005): inicial sobre gradiente por hash del id. ---
+// --- Avatar automático (RN-005) o imagen personalizada/animal ---
 export function avatar(user, size = 44, { crown = false } = {}) {
   const url = user?.profile_image_url;
-  if (url && !url.startsWith('/avatars/')) {
+  // Si tiene URL de imagen personalizada/animal (no la plantilla por defecto /avatars/x.svg)
+  const isDefaultInitialSvg = url && /^\/avatars\/[a-zA-Z0-9]\.svg$/.test(url);
+  if (url && !isDefaultInitialSvg) {
     const style = {
       width: `${size}px`,
       height: `${size}px`,
       fontSize: `${Math.round(size * 0.44)}px`,
     };
-    // Si es el endpoint de avatar en DB, usar la URL pública con user_id
     let imgSrc = url;
     if (url.startsWith('/api/v1/users/me/avatar/image')) {
-      // Convertir a endpoint público con user_id
       const userId = user?.id;
       if (userId) {
         imgSrc = `/api/v1/users/avatar/${userId}`;
@@ -23,7 +23,7 @@ export function avatar(user, size = 44, { crown = false } = {}) {
     const initial = String(user?.username || '?').charAt(0).toUpperCase();
     const hue = avatarHue(user?.id || user?.username || '?');
     const bgStyle = `linear-gradient(135deg, hsl(${hue} 82% 62%), hsl(${(hue + 46) % 360} 80% 52%))`;
-    const onError = `this.onerror=null; this.src=''; this.style.background='${bgStyle}'; this.alt='${initial}'; this.nextElementSibling?.remove(); this.textContent='${initial}';`;
+    const onError = `this.onerror=null; this.style.display='none'; if(this.parentElement) { this.parentElement.style.background='${bgStyle}'; this.parentElement.textContent='${initial}'; }`;
     return h('div', { class: 'avatar avatar--img', style, title: user?.username },
       h('img', { class: 'avatar-img', src: imgSrc, alt: user?.username || '', onerror: onError }),
       crown ? h('span', { class: 'avatar-crown', text: '♛' }) : null
