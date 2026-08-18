@@ -10,7 +10,7 @@ import { login, register, forgot, reset } from './auth.js';
 import { room } from './room.js';
 import { match } from './match.js';
 import { howto } from './howto.js';
-import { profile } from './profile.jsx';
+import { profile } from './profile.js';
 import { notFound } from './notfound.js';
 
 export { landing, login, register, forgot, reset, room, match, howto, profile, notFound };

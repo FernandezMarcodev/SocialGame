@@ -79,16 +79,26 @@ export function profile(view) {
 
       const buttons = items.map(a => {
         const isSelected = selectedAvatarId === a.id;
+        
+        // Usar el emoji directamente como avatar visual (más confiable que imágenes externas)
+        const emojiDisplay = h('span', {
+          class: 'avatar-option-emoji-main',
+          style: { 
+            fontSize: '48px', 
+            lineHeight: '1',
+            textShadow: '0 2px 4px rgba(0,0,0,0.2)',
+            filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.2))'
+          }
+        }, a.emoji || '🐾');
+
+        // Imagen original como fallback (opcional, oculta por defecto)
         const img = h('img', {
-          class: 'avatar-option-img',
+          class: 'avatar-option-img-fallback',
           src: a.image_url,
           alt: a.label,
-          onerror: `this.onerror=null; this.style.display='none'; if(this.nextElementSibling) this.nextElementSibling.style.display='flex';`
+          style: { display: 'none' },
+          onerror: `this.onerror=null; this.style.display='none';`
         });
-        const emojiFallback = h('span', {
-          class: 'avatar-option-emoji',
-          style: { display: 'none' }
-        }, a.emoji || '🐾');
 
         const labelSpan = h('span', { class: 'avatar-option-label' }, a.label);
 
@@ -102,7 +112,7 @@ export function profile(view) {
             btn.classList.add('is-selected');
             renderAvatarPreview(a.image_url);
           }
-        }, img, emojiFallback, labelSpan);
+        }, emojiDisplay, img, labelSpan);
         return btn;
       });
       avatarSelectorWrap.replaceChildren(...buttons);
