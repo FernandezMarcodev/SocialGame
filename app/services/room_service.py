@@ -79,10 +79,14 @@ class RoomService:
         return room
 
     def create_room(self, user: User, modality_id: int) -> Room:
-        if self._rooms.get_room_by_player(user.id) is not None:
-            raise ApiError(
-                409, "PLAYER_ALREADY_IN_SESSION", "Ya estás participando en una sala."
-            )
+        # Auto-limpiar sala fantasma del usuario antes de crear nueva (fix ghost room)
+        existing_room = self._rooms.get_room_by_player(user.id)
+        if existing_room is not None:
+            self._rooms.remove_player(existing_room.code, user.id)
+            # Si la sala queda vacía, eliminarla
+            if not existing_room.players:
+                self._rooms.remove(existing_room.code)
+
         if get_modality(modality_id) is None:
             raise ApiError(404, "MODALITY_NOT_FOUND", "La modalidad no existe.")
         code = _new_room_code()

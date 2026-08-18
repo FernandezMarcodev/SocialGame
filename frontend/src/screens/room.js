@@ -15,6 +15,7 @@ let code = null;
 let joining = false;
 let joinAttempts = 0;
 let subs = [];
+let pollTimer = null;
 
 export function room(v, { seg }) {
   teardown();
