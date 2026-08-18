@@ -41,109 +41,6 @@ export function profile(view) {
     }
   }
 
-  // Avatar selector
-  const avatarWrap = h('div', { class: 'profile-avatar-preview' });
-  function renderAvatarPreview(tempImageUrl = null) {
-    const current = currentUser();
-    const userToRender = tempImageUrl ? { ...current, profile_image_url: tempImageUrl } : current;
-    avatarWrap.replaceChildren(avatar(userToRender, 88));
-  }
-  renderAvatarPreview();
-
-  const avatarSelectorWrap = h('div', { class: 'avatar-selector' });
-  const avatarGalleryContainer = h('div', { class: 'avatar-gallery-container is-open' }, avatarSelectorWrap);
-  let selectedAvatarId = null;
-
-  const toggleSelectorBtn = h('button', {
-    type: 'button',
-    class: 'btn btn--glass btn--sm profile-avatar-toggle',
-    text: 'Seleccionar avatar'
-  });
-
-  toggleSelectorBtn.addEventListener('click', () => {
-    avatarGalleryContainer.classList.toggle('is-open');
-    const isOpen = avatarGalleryContainer.classList.contains('is-open');
-    toggleSelectorBtn.textContent = isOpen ? 'Ocultar avatares' : 'Seleccionar avatar';
-  });
-
-  async function loadAvatars() {
-    try {
-      const { items = [] } = await api.getAvatars();
-      
-      // Intentar marcar el avatar actualmente seleccionado si coincide con alguna URL
-      const currentUrl = currentUser()?.profile_image_url;
-      const currentMatch = items.find(a => a.image_url === currentUrl);
-      if (currentMatch) {
-        selectedAvatarId = currentMatch.id;
-      }
-
-      const buttons = items.map(a => {
-        const isSelected = selectedAvatarId === a.id;
-        
-        // Usar el emoji directamente como avatar visual (más confiable que imágenes externas)
-        const emojiDisplay = h('span', {
-          class: 'avatar-option-emoji-main',
-          style: { 
-            fontSize: '48px', 
-            lineHeight: '1',
-            textShadow: '0 2px 4px rgba(0,0,0,0.2)',
-            filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.2))'
-          }
-        }, a.emoji || '🐾');
-
-        // Imagen original como fallback (opcional, oculta por defecto)
-        const img = h('img', {
-          class: 'avatar-option-img-fallback',
-          src: a.image_url,
-          alt: a.label,
-          style: { display: 'none' },
-          onerror: `this.onerror=null; this.style.display='none';`
-        });
-
-        const labelSpan = h('span', { class: 'avatar-option-label' }, a.label);
-
-        const btn = h('button', {
-          type: 'button',
-          class: 'avatar-option' + (isSelected ? ' is-selected' : ''),
-          'aria-label': `Seleccionar avatar ${a.label}`,
-          onclick: () => {
-            selectedAvatarId = a.id;
-            avatarSelectorWrap.querySelectorAll('.avatar-option').forEach(b => b.classList.remove('is-selected'));
-            btn.classList.add('is-selected');
-            renderAvatarPreview(a.image_url);
-          }
-        }, emojiDisplay, img, labelSpan);
-        return btn;
-      });
-      avatarSelectorWrap.replaceChildren(...buttons);
-    } catch (err) {
-      toast(err.message, 'error');
-      avatarSelectorWrap.replaceChildren(h('p', { class: 'field-hint' }, 'Error al cargar los avatares'));
-    }
-  }
-
-  async function saveAvatar() {
-    if (!selectedAvatarId) return toast('Elegi un avatar de la lista.', 'info');
-    saveAvatarBtn.disabled = true;
-    saveAvatarBtn.classList.add('btn--loading');
-    try {
-      const updated = await api.updateAvatarPredefined(selectedAvatarId);
-      setUser(updated);
-      renderAvatarPreview();
-      toast('¡Avatar guardado en la base de datos!', 'success');
-    } catch (err) {
-      toast(err.message, 'error');
-    } finally {
-      saveAvatarBtn.disabled = false;
-      saveAvatarBtn.classList.remove('btn--loading');
-    }
-  }
-
-  const saveAvatarBtn = h('button', { class: 'btn btn--primary btn--block', type: 'button', text: 'Guardar avatar' });
-  saveAvatarBtn.addEventListener('click', saveAvatar);
-
-  // Cargar avatars al iniciar
-  loadAvatars();
 
   // Contraseña
   const cur = h('input', { class: 'input', type: 'password', placeholder: 'Contraseña actual' });
@@ -221,18 +118,6 @@ export function profile(view) {
         h('h1', { class: 'profile-name' }, user?.username),
         h('p', { class: 'profile-email' }, user?.email)
       )
-    ),
-    h('section', { class: 'profile-card' },
-      h('h2', { class: 'panel-title' }, 'Avatar de perfil'),
-      h('div', { class: 'profile-avatar-row' },
-        avatarWrap,
-        h('div', { class: 'profile-avatar-info' },
-          h('p', { class: 'field-hint' }, 'Elige uno de los 12 avatares de animales para tu perfil:'),
-          toggleSelectorBtn
-        )
-      ),
-      avatarGalleryContainer,
-      saveAvatarBtn
     ),
     h('section', { class: 'profile-card' },
       h('h2', { class: 'panel-title' }, 'Datos del perfil'),
