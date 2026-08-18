@@ -82,11 +82,10 @@ export function scoreCard(v) {
 }
 
 function cardFace(v) {
-  const suit = '♥';
   return [
-    cardCorner(v, suit),
-    h('span', { class: 'card-center card-suit is-red', text: suit }),
-    cardCorner(v, suit, true),
+    h('span', { class: 'card-rank-top', text: v }),
+    h('span', { class: 'card-center card-suit is-red', text: '♥' }),
+    h('span', { class: 'card-rank-bottom', text: v }),
   ];
 }
 

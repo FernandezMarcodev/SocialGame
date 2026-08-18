@@ -1764,11 +1764,16 @@ body::after {
   transform: rotate(180deg);
 }
 
-.card-rank {
+.card-rank-top,
+.card-rank-bottom {
   font-size: clamp(13px, 3vw, 18px);
   font-weight: 800;
   line-height: 1;
   color: var(--ink);
+}
+
+.card-rank-bottom {
+  margin-top: auto;
 }
 
 .card-center {
