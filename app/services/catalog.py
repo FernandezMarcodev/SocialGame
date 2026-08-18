@@ -16,20 +16,21 @@ def list_modalities() -> dict:
     return {"items": list(MODALITIES), "total": len(MODALITIES)}
 
 
-# Avatares predeterminados - cada uno es un SVG generado con inicial + color
+# Avatares predeterminados - URLs de imágenes simples (emojis/ilustraciones)
+# En producción podrías subir imágenes reales a un CDN/S3
 AVATARS: list[dict] = [
-    {"id": "avatar-1", "label": "Rojo", "bg": "#e53e3e", "fg": "#fff"},
-    {"id": "avatar-2", "label": "Naranja", "bg": "#dd6b20", "fg": "#fff"},
-    {"id": "avatar-3", "label": "Amarillo", "bg": "#d69e2e", "fg": "#1a202c"},
-    {"id": "avatar-4", "label": "Verde", "bg": "#38a169", "fg": "#fff"},
-    {"id": "avatar-5", "label": "Verde azulado", "bg": "#319795", "fg": "#fff"},
-    {"id": "avatar-6", "label": "Azul", "bg": "#3182ce", "fg": "#fff"},
-    {"id": "avatar-7", "label": "Índigo", "bg": "#553c9a", "fg": "#fff"},
-    {"id": "avatar-8", "label": "Morado", "bg": "#805ad5", "fg": "#fff"},
-    {"id": "avatar-9", "label": "Rosa", "bg": "#d53f8c", "fg": "#fff"},
-    {"id": "avatar-10", "label": "Cian", "bg": "#00b5d8", "fg": "#fff"},
-    {"id": "avatar-11", "label": "Gris", "bg": "#718096", "fg": "#fff"},
-    {"id": "avatar-12", "label": "Negro", "bg": "#1a202c", "fg": "#fff"},
+    {"id": "avatar-1", "label": "Gato", "image_url": "https://cdn.jsdelivr.net/gh/twitter/twemoji@14.0.2/assets/72x72/1f408.png"},
+    {"id": "avatar-2", "label": "Perro", "image_url": "https://cdn.jsdelivr.net/gh/twitter/twemoji@14.0.2/assets/72x72/1f415.png"},
+    {"id": "avatar-3", "label": "Conejo", "image_url": "https://cdn.jsdelivr.net/gh/twitter/twemoji@14.0.2/assets/72x72/1f407.png"},
+    {"id": "avatar-4", "label": "Zorro", "image_url": "https://cdn.jsdelivr.net/gh/twitter/twemoji@14.0.2/assets/72x72/1f98a.png"},
+    {"id": "avatar-5", "label": "Oso", "image_url": "https://cdn.jsdelivr.net/gh/twitter/twemoji@14.0.2/assets/72x72/1f43b.png"},
+    {"id": "avatar-6", "label": "Panda", "image_url": "https://cdn.jsdelivr.net/gh/twitter/twemoji@14.0.2/assets/72x72/1f43c.png"},
+    {"id": "avatar-7", "label": "Koala", "image_url": "https://cdn.jsdelivr.net/gh/twitter/twemoji@14.0.2/assets/72x72/1f428.png"},
+    {"id": "avatar-8", "label": "Tigre", "image_url": "https://cdn.jsdelivr.net/gh/twitter/twemoji@14.0.2/assets/72x72/1f42f.png"},
+    {"id": "avatar-9", "label": "León", "image_url": "https://cdn.jsdelivr.net/gh/twitter/twemoji@14.0.2/assets/72x72/1f981.png"},
+    {"id": "avatar-10", "label": "Mono", "image_url": "https://cdn.jsdelivr.net/gh/twitter/twemoji@14.0.2/assets/72x72/1f412.png"},
+    {"id": "avatar-11", "label": "Pingüino", "image_url": "https://cdn.jsdelivr.net/gh/twitter/twemoji@14.0.2/assets/72x72/1f427.png"},
+    {"id": "avatar-12", "label": "Unicornio", "image_url": "https://cdn.jsdelivr.net/gh/twitter/twemoji@14.0.2/assets/72x72/1f984.png"},
 ]
 
 
