@@ -41,13 +41,15 @@ def test_create_room(client, outbox):
 def test_create_room_while_in_another_room(client, outbox):
     tokens = make_users(client, outbox, 1)
     create_room(client, tokens[0])
+    # Con auto-limpieza, crear una sala nueva limpia la anterior automáticamente.
     resp = client.post(
         "/api/v1/rooms",
         json={"modality_id": MODALITY_ID},
         headers=auth_headers(tokens[0]),
     )
-    assert resp.status_code == 409
-    assert resp.json()["error"]["code"] == "PLAYER_ALREADY_IN_SESSION"
+    assert resp.status_code == 201
+    new_room = resp.json()
+    assert new_room["code"] is not None
 
 
 def test_create_room_invalid_modality(client, outbox):
@@ -321,12 +323,14 @@ def test_force_disconnect_enables_new_room(client, outbox):
     """Después del force-leave, el jugador puede crear una sala nueva."""
     tokens = make_users(client, outbox, 1)
     create_room(client, tokens[0])
-    # Sin force-leave, crear una sala falla (RN-004).
+    # Con auto-limpieza, crear una sala nueva limpia la anterior automáticamente.
     resp = client.post("/api/v1/rooms", json={"modality_id": MODALITY_ID}, headers=auth_headers(tokens[0]))
-    assert resp.status_code == 409
-    # Force-leave despeja la sala fantasma.
+    assert resp.status_code == 201
+    # La sala anterior se limpió automáticamente.
+    new_room = resp.json()
+    # Force-leave también funciona para limpiar salas fantasma manualmente.
     client.post("/api/v1/users/me/rooms/force-leave", headers=auth_headers(tokens[0]))
-    # Ahora sí se puede crear una sala.
+    # Ahora se puede crear otra sala.
     resp = client.post("/api/v1/rooms", json={"modality_id": MODALITY_ID}, headers=auth_headers(tokens[0]))
     assert resp.status_code == 201
 

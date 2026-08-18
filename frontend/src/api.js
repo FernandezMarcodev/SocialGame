@@ -92,6 +92,8 @@ export const api = {
      form.append('file', file);
      return call('/api/v1/users/me/avatar', { method: 'PUT', body: form });
    },
+   updateAvatarPredefined: (avatar_id) => call('/api/v1/users/me/avatar/predefined', { method: 'PUT', body: { avatar_id } }),
+   getAvatars: () => call('/api/v1/users/avatars').then((d) => d?.items ?? []),
    forceLeaveGhosts: () => call('/api/v1/users/me/rooms/force-leave', { method: 'POST' }),
 
   // Modalidades

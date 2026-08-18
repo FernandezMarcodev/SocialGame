@@ -115,6 +115,8 @@ class UserModel(Base):
             password_hash=self.password_hash,
             verified=self.verified,
             profile_image_url=self.profile_image_url,
+            avatar_data=self.avatar_data,
+            avatar_content_type=self.avatar_content_type,
             created_at=self.created_at,
             failed_attempts=self.failed_attempts,
             blocked_until=self.blocked_until,

@@ -41,49 +41,55 @@ export function profile(view) {
     }
   }
 
-  // Foto de perfil
+  // Avatar selector
   const avatarWrap = h('div', { class: 'profile-avatar-preview' });
   function renderAvatarPreview() {
     avatarWrap.replaceChildren(avatar(currentUser(), 88));
   }
   renderAvatarPreview();
 
-  const fileInput = h('input', { type: 'file', accept: 'image/jpeg,image/png,image/webp,image/gif', class: 'input-file' });
-  const fileName = h('span', { class: 'file-name', text: 'Ningún archivo seleccionado' });
-  const chooseLabel = h('label', { class: 'btn btn--glass', text: 'Elegir archivo' });
-  chooseLabel.append(fileInput);
-  fileInput.addEventListener('change', () => {
-    const file = fileInput.files?.[0];
-    if (!file) return;
-    fileName.textContent = file.name;
-    avatarWrap.replaceChildren(
-      h('div', { class: 'avatar avatar--img', style: { width: '88px', height: '88px' } },
-        h('img', { class: 'avatar-img', src: URL.createObjectURL(file), alt: 'preview' })
-      )
-    );
-    uploadBtn.disabled = false;
-  });
+  const avatarSelectorWrap = h('div', { class: 'avatar-selector' });
+  let selectedAvatarId = null;
 
-  const uploadBtn = h('button', { class: 'btn btn--primary', type: 'button', text: 'Subir foto', disabled: true });
-  uploadBtn.addEventListener('click', async () => {
-    const file = fileInput.files?.[0];
-    if (!file) return;
-    uploadBtn.disabled = true;
-    uploadBtn.classList.add('btn--loading');
+  async function loadAvatars() {
     try {
-      const updated = await api.updateAvatar(file);
-      setUser(updated);
-      renderAvatarPreview();
-      fileInput.value = '';
-      fileName.textContent = 'Ningún archivo seleccionado';
-      toast('Foto de perfil actualizada.', 'success');
+      const { items } = await api.getAvatars();
+      avatarSelectorWrap.replaceChildren(...items.map(a => {
+        const btn = h('button', {
+          type: 'button',
+          class: 'avatar-option' + (selectedAvatarId === a.id ? ' is-selected' : ''),
+          style: { background: a.bg },
+          'aria-label': a.label,
+          onclick: () => {
+            selectedAvatarId = a.id;
+            avatarSelectorWrap.querySelectorAll('.avatar-option').forEach(b => b.classList.remove('is-selected'));
+            btn.classList.add('is-selected');
+          }
+        }, h('span', { style: { color: a.fg, fontSize: '48px', fontWeight: 'bold', textShadow: '0 2px 4px rgba(0,0,0,0.3)' } }, a.label.charAt(0)));
+        return btn;
+      }));
     } catch (err) {
       toast(err.message, 'error');
-    } finally {
-      uploadBtn.disabled = false;
-      uploadBtn.classList.remove('btn--loading');
     }
-  });
+  }
+
+  async function saveAvatar() {
+    if (!selectedAvatarId) return toast('Elegí un avatar.', 'info');
+    try {
+      const updated = await api.updateAvatarPredefined(selectedAvatarId);
+      setUser(updated);
+      renderAvatarPreview();
+      toast('Avatar actualizado.', 'success');
+    } catch (err) {
+      toast(err.message, 'error');
+    }
+  }
+
+  const saveAvatarBtn = h('button', { class: 'btn btn--primary btn--block', type: 'button', text: 'Guardar avatar' });
+  saveAvatarBtn.addEventListener('click', saveAvatar);
+
+  // Cargar avatars al iniciar
+  loadAvatars();
 
   // Contraseña
   const cur = h('input', { class: 'input', type: 'password', placeholder: 'Contraseña actual' });
@@ -163,18 +169,15 @@ export function profile(view) {
       )
     ),
     h('section', { class: 'profile-card' },
-      h('h2', { class: 'panel-title' }, 'Foto de perfil'),
+      h('h2', { class: 'panel-title' }, 'Avatar'),
       h('div', { class: 'profile-avatar-row' },
         avatarWrap,
         h('div',
-          h('p', { class: 'field-hint' }, 'JPG, PNG, WEBP o GIF de hasta 2 MB.'),
-          h('div', { class: 'profile-avatar-actions' },
-            chooseLabel,
-            uploadBtn
-          ),
-          fileName
+          h('p', { class: 'field-hint' }, 'Elegí un avatar predefinido.'),
+          avatarSelectorWrap
         )
-      )
+      ),
+      saveAvatarBtn
     ),
     h('section', { class: 'profile-card' },
       h('h2', { class: 'panel-title' }, 'Datos del perfil'),

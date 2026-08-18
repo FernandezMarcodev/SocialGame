@@ -37,6 +37,7 @@ services:
       # Si no, se arma con las variables POSTGRES_* para el contenedor local.
       DATABASE_URL: ${DATABASE_URL:-postgresql://${POSTGRES_USER:-es10p}:${POSTGRES_PASSWORD:-es10p}@db:5432/${POSTGRES_DB:-es10p}}
       REDIS_URL: redis://redis:6379/0
+      AVATAR_STORAGE: database
     ports:
       - "${PORT:-8000}:8000"
     volumes:

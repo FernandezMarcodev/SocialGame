@@ -3,13 +3,14 @@
 from fastapi import APIRouter, Depends, File, Query, Request, Response, UploadFile
 
 from app.api.deps import get_current_user, get_event_bus, get_rooms_service, get_users_service
-from app.api.schemas import GhostDisconnectOut, UpdateProfileIn, UserOut
+from app.api.schemas import GhostDisconnectOut, UpdateProfileIn, UpdateAvatarIn, UserOut
 from app.services.room_service import RoomService
 from app.services.realtime_service import EventBus
 from app.services.users_service import UsersService
 from app.api.errors import ApiError
 from app.services.auth_service import AuthService
 from app.domain.entities import User
+from app.services.catalog import list_avatars
 
 router = APIRouter(prefix="/users", tags=["users"])
 
@@ -40,6 +41,20 @@ async def update_avatar(
 ) -> UserOut:
     content = await file.read()
     return users.update_avatar(user, content, file.content_type)
+
+
+@router.put("/me/avatar/predefined", response_model=UserOut)
+def update_avatar_predefined(
+    payload: UpdateAvatarIn,
+    user=Depends(get_current_user),
+    users: UsersService = Depends(get_users_service),
+) -> UserOut:
+    return users.update_avatar_predefined(user, payload.avatar_id)
+
+
+@router.get("/avatars")
+def get_avatars():
+    return list_avatars()
 
 
 async def _get_user_from_token(
@@ -96,11 +111,6 @@ async def force_disconnect(
             room_code=room.code,
             message="Te has desconectado de la sala.",
         )
-    return GhostDisconnectOut(
-        disconnected=False,
-        room_code=None,
-        message="No estabas en ninguna sala.",
-    )
     return GhostDisconnectOut(
         disconnected=False,
         room_code=None,

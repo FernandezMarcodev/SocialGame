@@ -95,3 +95,34 @@ class UsersService:
 
         self._users.update(user)
         return UserOut.model_validate(user)
+
+    def update_avatar_predefined(self, user: User, avatar_id: str) -> UserOut:
+        """Actualiza avatar a uno predeterminado (sin upload)."""
+        from app.services.catalog import get_avatar
+        avatar = get_avatar(avatar_id)
+        if not avatar:
+            raise ApiError(404, "AVATAR_NOT_FOUND", "Avatar no encontrado.")
+        
+        # Generar SVG del avatar
+        initial = user.username[0].upper() if user.username else "?"
+        svg = self._generate_avatar_svg(initial, avatar["bg"], avatar["fg"])
+        
+        if self._settings.avatar_storage == "database":
+            user.avatar_data = svg.encode('utf-8')
+            user.avatar_content_type = "image/svg+xml"
+            user.profile_image_url = f"/api/v1/users/me/avatar/image"
+        else:
+            os.makedirs(self._settings.upload_dir, exist_ok=True)
+            filename = f"{user.id}.svg"
+            with open(os.path.join(self._settings.upload_dir, filename), "w") as f:
+                f.write(svg)
+            user.profile_image_url = f"/uploads/{filename}"
+        
+        self._users.update(user)
+        return UserOut.model_validate(user)
+
+    def _generate_avatar_svg(self, initial: str, bg: str, fg: str) -> str:
+        return f'''<svg xmlns="http://www.w3.org/2000/svg" width="200" height="200" viewBox="0 0 200 200">
+  <circle cx="100" cy="100" r="100" fill="{bg}"/>
+  <text x="100" y="125" font-family="Arial, sans-serif" font-size="100" font-weight="bold" fill="{fg}" text-anchor="middle" dominant-baseline="middle">{initial}</text>
+</svg>'''
