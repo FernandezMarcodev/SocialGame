@@ -11,14 +11,13 @@ export function avatar(user, size = 44, { crown = false } = {}) {
       height: `${size}px`,
       fontSize: `${Math.round(size * 0.44)}px`,
     };
-    // Si es el endpoint de avatar en DB, agregar token como query param para <img>
+    // Si es el endpoint de avatar en DB, usar la URL pública con user_id
     let imgSrc = url;
     if (url.startsWith('/api/v1/users/me/avatar/image')) {
-      const token = (typeof window !== 'undefined' && window.store?.session?.token) 
-        || (typeof sessionStorage !== 'undefined' && sessionStorage.getItem('es10p.active') 
-            && JSON.parse(localStorage.getItem('es10p.sessions') || '{}')[sessionStorage.getItem('es10p.active')]?.token);
-      if (token) {
-        imgSrc = `${url}?token=${encodeURIComponent(token)}`;
+      // Convertir a endpoint público con user_id
+      const userId = user?.id;
+      if (userId) {
+        imgSrc = `/api/v1/users/avatar/${userId}`;
       }
     }
     const initial = String(user?.username || '?').charAt(0).toUpperCase();

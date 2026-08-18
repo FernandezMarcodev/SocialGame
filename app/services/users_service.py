@@ -81,8 +81,8 @@ class UsersService:
             # Guardar en DB como bytes
             user.avatar_data = content
             user.avatar_content_type = content_type
-            # profile_image_url apunta a endpoint que sirve la imagen desde DB
-            user.profile_image_url = f"/api/v1/users/me/avatar/image"
+            # profile_image_url apunta a endpoint público con user_id
+            user.profile_image_url = f"/api/v1/users/avatar/{user.id}"
         else:
             # Local filesystem (dev / single instance)
             os.makedirs(self._settings.upload_dir, exist_ok=True)
@@ -110,7 +110,7 @@ class UsersService:
         if self._settings.avatar_storage == "database":
             user.avatar_data = svg.encode('utf-8')
             user.avatar_content_type = "image/svg+xml"
-            user.profile_image_url = f"/api/v1/users/me/avatar/image"
+            user.profile_image_url = f"/api/v1/users/avatar/{user.id}"
         else:
             os.makedirs(self._settings.upload_dir, exist_ok=True)
             filename = f"{user.id}.svg"

@@ -57,6 +57,22 @@ def get_avatars():
     return list_avatars()
 
 
+@router.get("/avatar/{user_id}")
+async def get_user_avatar(
+    user_id: str,
+) -> Response:
+    """Sirve la imagen de avatar de un usuario (público, sin autenticación)."""
+    from app.stores.database import Database, DatabaseUserStore
+    from app.core.config import get_settings
+    s = get_settings()
+    db = Database(s.database_url)
+    store = DatabaseUserStore(db)
+    user = store.get_by_id(user_id)
+    if not user or not user.avatar_data or not user.avatar_content_type:
+        return Response(status_code=404)
+    return Response(content=user.avatar_data, media_type=user.avatar_content_type)
+
+
 async def _get_user_from_token(
     token: str | None = Query(default=None),
     auth_service: AuthService = Depends(get_auth_service),
